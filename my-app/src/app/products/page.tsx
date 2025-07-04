@@ -6,17 +6,9 @@ import Link from "next/link";
 import { motion } from 'framer-motion';
 import { FiSearch, FiShoppingCart, FiArrowRight, FiWind, FiBox, FiDroplet, FiScissors, FiSun, FiZap, FiMoreHorizontal, FiImage } from 'react-icons/fi';
 import AuroraBackground from '../components/AuroraBackground';
+import { Product } from '../../types';
 
-interface Product {
-  _id: string;
-  nomProduit: string;
-  description?: string;
-  prix: number;
-  categorie: string;
-  sousCategorie?: string;
-  imageUrl?: string;
-  quantiteStock: number;
-}
+
 
 const CategoryIcon = ({ name }: { name: string }) => {
   const icons: { [key: string]: React.ElementType } = {

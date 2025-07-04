@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image';
 import { ReactNode, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -43,13 +44,20 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 bg-white transform transition-transform duration-200 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 border-r border-gray-200 shadow-lg`}
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white transform transition-transform duration-200 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 border-r border-gray-200 shadow-lg`}
       >
-        <div className="h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700">
-          <span className="text-xl font-bold text-white">Yalla Clean</span>
+        <div className="h-20 flex items-center justify-between px-4 border-b border-gray-200">
+          <Image
+            src="/Yalla.png"
+            alt="Logo YallaClean"
+            width={140}
+            height={140}
+            priority
+            className="h-16 w-auto object-contain"
+          />
           <button
             onClick={() => setIsSidebarOpen(false)}
-            className="lg:hidden text-white hover:text-gray-200"
+            className="lg:hidden text-gray-500 hover:text-gray-700"
           >
             <FiX className="h-6 w-6" />
           </button>
@@ -105,21 +113,21 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
       )}
 
       {/* Main content */}
-      <div className="lg:pl-72">
+      <div className="lg:pl-64">
         {/* Top header */}
-        <header className="sticky top-0 z-40 bg-white/60 dark:bg-slate-900/60 backdrop-blur border-b border-gray-200 dark:border-slate-700 shadow-sm">
-          <div className="flex items-center justify-between h-16 px-6">
+        <header className="sticky top-0 z-40 bg-gray-900 border-b border-gray-800">
+          <div className="flex items-center justify-between h-14 px-6">
             <button
               onClick={() => setIsSidebarOpen(true)}
-              className="lg:hidden text-gray-500 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-2 bg-white shadow-sm hover:bg-gray-50 transition-colors duration-200"
+              className="lg:hidden text-white/80 hover:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-2 transition-colors duration-200"
             >
               <FiMenu className="h-6 w-6" />
             </button>
             <div className="flex items-center space-x-4">
-              <button onClick={toggleDark} className="p-2 rounded-md hover:bg-gray-100 dark:hover:bg-slate-800 transition-colors">
-                {darkMode ? <FiSun className="h-5 w-5 text-yellow-400" /> : <FiMoon className="h-5 w-5 text-gray-600" />}
+              <button onClick={toggleDark} className="p-2 rounded-md hover:bg-white/10 transition-colors">
+                {darkMode ? <FiSun className="h-5 w-5 text-yellow-400" /> : <FiMoon className="h-5 w-5 text-white/80" />}
               </button>
-              <span className="text-sm text-gray-500">
+              <span className="text-sm text-white/80">
                 {new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
               </span>
             </div>

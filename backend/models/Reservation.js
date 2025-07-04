@@ -3,7 +3,19 @@ const mongoose = require('mongoose');
 const reservationSchema = new mongoose.Schema(
   {
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    datetime: { type: Date, required: true },
+    // For compatibility older field
+    datetime: { type: Date },
+    // New explicit fields
+    pickup: { type: Date, required: true },
+    delivery: { type: Date, required: true },
+    pickupLocation: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], required: true },
+    },
+    deliveryLocation: {
+      type: { type: String, enum: ['Point'], default: 'Point' },
+      coordinates: { type: [Number], required: true },
+    },
     services: [
       {
         name: { type: String, required: true },

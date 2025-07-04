@@ -4,13 +4,13 @@ const Reservation = require('../models/Reservation');
 exports.createReservation = async (req, res) => {
   try {
     const userId = req.user ? req.user.id : null; // if auth middleware set
-    const { datetime, services } = req.body;
+    const { pickup, delivery, pickupLocation, deliveryLocation, services } = req.body;
 
-    if (!datetime || !services || !Array.isArray(services) || services.length === 0) {
+    if (!pickup || !delivery || !pickupLocation || !deliveryLocation || !services || !Array.isArray(services) || services.length === 0) {
       return res.status(400).json({ message: 'Invalid data' });
     }
 
-    const reservation = new Reservation({ user: userId, datetime, services });
+    const reservation = new Reservation({ user: userId, pickup, delivery, pickupLocation, deliveryLocation, services });
     await reservation.save();
     res.status(201).json({ reservation });
   } catch (err) {

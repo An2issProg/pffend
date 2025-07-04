@@ -5,20 +5,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { FiTrash2, FiPlus, FiMinus, FiArrowLeft } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
+import { CartItem } from '../../types';
 
-// Updated Product interface to match the data from products page
-interface Product {
-  _id: string;
-  nomProduit: string;
-  prix: number;
-  imageUrl?: string;
-  quantity: number;
-}
+
 
 const PanierPage = () => {
-  const [cartItems, setCartItems] = useState<Product[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const router = useRouter();
 
   useEffect(() => {
@@ -29,12 +21,10 @@ const PanierPage = () => {
         if (Array.isArray(parsedCart)) {
           setCartItems(parsedCart);
         } else {
-          // Clear invalid cart data
           localStorage.removeItem('panier');
         }
       } catch (error) {
         console.error("Failed to parse cart from localStorage", error);
-        // Clear invalid cart data
         localStorage.removeItem('panier');
       }
     }
@@ -47,7 +37,6 @@ const PanierPage = () => {
     );
     setCartItems(updatedCart);
     localStorage.setItem('panier', JSON.stringify(updatedCart));
-    // Dispatch custom event to notify other components about cart update
     window.dispatchEvent(new Event('cartUpdated'));
   };
 
@@ -55,51 +44,13 @@ const PanierPage = () => {
     const updatedCart = cartItems.filter(item => item._id !== _id);
     setCartItems(updatedCart);
     localStorage.setItem('panier', JSON.stringify(updatedCart));
-    // Dispatch custom event to notify other components about cart update
     window.dispatchEvent(new Event('cartUpdated'));
   };
 
   const total = cartItems.reduce((acc, item) => acc + item.prix * item.quantity, 0);
 
-  const handleCheckout = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    const token = localStorage.getItem('token');
-    if (!token) {
-      router.push('/login?redirect=/panier');
-      return;
-    }
-
-    try {
-      const response = await fetch('http://localhost:5001/api/reservations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          datetime: new Date().toISOString(),
-          services: cartItems.map(item => ({ name: item.nomProduit, quantity: item.quantity })),
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'La création de la réservation a échoué.');
-      }
-
-      // Order successful
-            alert('Votre achat a été enregistré avec succès comme une réservation!');
-      localStorage.removeItem('panier');
-      setCartItems([]);
-      router.push('/dashboard');
-
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
-      setIsLoading(false);
-    }
+  const handleCheckout = () => {
+    router.push('/reservation');
   };
 
   return (
@@ -160,12 +111,10 @@ const PanierPage = () => {
                   <span>{total.toFixed(2)} DT</span>
                 </div>
               </div>
-                            {error && <p className="text-red-400 text-sm text-center my-2">{error}</p>}
               <button 
                 onClick={handleCheckout}
-                disabled={isLoading}
-                className="w-full mt-6 bg-gradient-to-r from-sky-500 to-emerald-500 text-white px-6 py-3 rounded-full font-semibold hover:from-sky-400 hover:to-emerald-400 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
-                                {isLoading ? 'Traitement...' : 'Passer la commande'}
+                className="w-full mt-6 bg-gradient-to-r from-sky-500 to-emerald-500 text-white px-6 py-3 rounded-full font-semibold hover:from-sky-400 hover:to-emerald-400 transition-all duration-300 transform hover:scale-105 shadow-lg">
+                Planifier la réservation
               </button>
             </div>
           </div>

@@ -2,13 +2,16 @@
 
 import { useParams, useRouter } from "next/navigation";
 import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
 import { FiArrowLeft, FiUser, FiUserCheck, FiSmile, FiHome, FiArchive, FiRefreshCw, FiPlus, FiMinus, FiDroplet, FiActivity } from "react-icons/fi";
 import React from "react";
+import { CartItem } from "../../../types";
 
 interface Item {
+  _id: string;
   name: string;
   price: number;
+  categorie: string;
+  quantiteStock: number;
 }
 
 type Subcategory = { key: string; label: string; icon: React.ReactElement };
@@ -50,19 +53,10 @@ const allSubcategories: Record<string, Subcategory[]> = {
   ]
 };
 
-
-
-
-
-
- 
-
-
 export default function CategoryDetails() {
   const router = useRouter();
   const { slug } = useParams<{ slug: string }>();
 
-  // fetched data state
   const [data, setData] = useState<Record<string, Item[]>>({});
 
   useEffect(() => {
@@ -72,26 +66,31 @@ export default function CategoryDetails() {
         const grouped: Record<string, Item[]> = {};
         (d.services || []).forEach((s: any) => {
           if (!grouped[s.subcategory]) grouped[s.subcategory] = [];
-          grouped[s.subcategory].push({ name: s.name, price: s.price });
+          grouped[s.subcategory].push({ 
+            _id: s._id, 
+            name: s.name, 
+            price: s.price,
+            categorie: s.categorie, 
+            quantiteStock: s.quantiteStock || 0
+          });
         });
         setData(grouped);
       })
       .catch((e) => console.error(e));
   }, [slug]);
 
-  // compute subcategories for current slug
   const subcategories = useMemo(() => {
     return allSubcategories[slug] || allSubcategories["nettoyage"];
   }, [slug]);
 
   const [active, setActive] = useState<string>(subcategories[0]?.key || "");
 
-  // Reset active subcategory when the main category (slug) changes
   useEffect(() => {
     if (subcategories.length > 0) {
       setActive(subcategories[0].key);
     }
   }, [subcategories]);
+
   const [cart, setCart] = useState<Record<string, number>>({});
 
   const addItem = (name: string) => {
@@ -108,13 +107,35 @@ export default function CategoryDetails() {
   };
 
   const total = Object.entries(cart).reduce((sum, [n, q]) => {
-    // find price in data
     const item = (Object.values(data).flat()).find((i) => i.name === n);
     return sum + (item ? item.price * q : 0);
   }, 0);
 
   const handleNext = () => {
-    localStorage.setItem("cart", JSON.stringify(cart));
+    const allPageItems = Object.values(data).flat();
+    const existingCartRaw = localStorage.getItem('panier');
+    const existingCart: CartItem[] = existingCartRaw ? JSON.parse(existingCartRaw) : [];
+    const cartMap = new Map(existingCart.map(item => [item._id, item]));
+
+    allPageItems.forEach(pageItem => {
+      const quantityOnPage = cart[pageItem.name] || 0;
+      if (quantityOnPage > 0) {
+        cartMap.set(pageItem._id, {
+          _id: pageItem._id,
+          nomProduit: pageItem.name,
+          prix: pageItem.price,
+          quantity: quantityOnPage,
+          categorie: pageItem.categorie,
+          quantiteStock: pageItem.quantiteStock,
+        });
+      } else {
+        cartMap.delete(pageItem._id);
+      }
+    });
+
+    const finalCart = Array.from(cartMap.values());
+    localStorage.setItem('panier', JSON.stringify(finalCart));
+    window.dispatchEvent(new Event('cartUpdated'));
     router.push("/reservation");
   };
 
@@ -128,7 +149,6 @@ export default function CategoryDetails() {
         <FiRefreshCw /> {slug.charAt(0).toUpperCase() + slug.slice(1)}
       </h1>
 
-      {/* Subcategory tabs */}
       <div className="flex overflow-x-auto gap-4 mb-6 pb-2 border-b border-white/10">
         {subcategories.map((sc) => (
           <button
@@ -146,7 +166,6 @@ export default function CategoryDetails() {
         ))}
       </div>
 
-      {/* Items for active subcategory */}
       <div className="space-y-4">
         {(data[active] || []).map((item) => (
           <div key={item.name} className="flex items-center justify-between bg-black/30 backdrop-blur-lg p-4 rounded-xl border border-white/10">
@@ -159,7 +178,7 @@ export default function CategoryDetails() {
               <button onClick={() => addItem(item.name)} className="p-1 hover:text-pink-400">
                 <FiPlus />
               </button>
-              <span className="text-sm text-gray-400 w-16 text-right">{item.price} dt</span>
+              <span className="text-sm text-gray-400 w-16 text-right">{item.price.toFixed(3)} dt</span>
             </div>
           </div>
         )) || <p className="text-gray-400">Pas d'articles.</p>}
