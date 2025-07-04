@@ -9,12 +9,14 @@ const adminRoutes = require('./routes/adminRoutes');
 const superAdminRoutes = require('./routes/superAdminRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const productRoutes = require('./routes/productRoutes');
+const salesRoutes = require('./routes/salesRoutes');
 const catalogRoutes = require('./routes/catalogRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const adminServiceRoutes = require('./routes/adminServiceRoutes');
 const reservationRoutes = require('./routes/reservationRoutes');
 const clientReservationRoutes = require('./routes/clientReservationRoutes');
 const workerReservationRoutes = require('./routes/workerReservationRoutes');
+const workerRoutes = require('./routes/workerRoutes');
 
 const app = express();
 
@@ -22,7 +24,7 @@ const app = express();
 app.use(express.json());
 
 // Enable CORS for all routes
-const allowedOrigins = ['http://localhost:3000', 'http://localhost:3002'];
+const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'];
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -58,10 +60,12 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 app.use('/api/admin/clients', clientRoutes);
 app.use('/api/admin/products', productRoutes);
+app.use('/api/admin/sales', salesRoutes);
 app.use('/api', catalogRoutes);
 app.use('/api/reservations', reservationRoutes);
 app.use('/api/client/reservations', clientReservationRoutes);
 app.use('/api/worker/reservations', workerReservationRoutes);
+app.use('/api/worker', workerRoutes);
 app.use('/api', serviceRoutes);
 app.use('/api/admin', adminServiceRoutes);
 

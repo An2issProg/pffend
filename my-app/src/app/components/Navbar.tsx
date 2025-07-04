@@ -169,7 +169,7 @@ export default function Navbar() {
           {isLoggedIn ? (
             <>
               <div className="flex items-center gap-4">
-                <Link href="/panier" className="relative text-white/80 hover:text-white transition-all duration-300">
+                <Link href="/reservation" className="relative text-white/80 hover:text-white transition-all duration-300">
                   <FiShoppingCart className="w-6 h-6" />
                   {cartItemsCount > 0 && (
                     <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">

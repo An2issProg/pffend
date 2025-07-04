@@ -18,6 +18,25 @@ interface ServiceItem {
   quantity: number;
 }
 
+interface Product {
+  _id: string;
+  nomProduit: string;
+  prix: number;
+}
+
+interface Service {
+  _id: string;
+  name: string;
+  price: number;
+}
+
+interface CartItem {
+  id: string;
+  name: string;
+  price: number;
+  type: 'product' | 'service';
+}
+
 interface GeoPoint {
   type: "Point";
   coordinates: [number, number];
@@ -59,7 +78,13 @@ export default function WorkerDashboard() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [updatingId, setUpdatingId] = useState<string | null>(null);
+    const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [isCaisseOpen, setIsCaisseOpen] = useState(false);
+    const [caisseTotal, setCaisseTotal] = useState(0);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+    const [cart, setCart] = useState<CartItem[]>([]);
+  const [lastSaleTotal, setLastSaleTotal] = useState<number | null>(null);
 
   const fetchReservations = async () => {
     try {
@@ -82,10 +107,64 @@ export default function WorkerDashboard() {
     }
   };
 
-  useEffect(() => {
+    useEffect(() => {
     fetchReservations();
+    fetchProductsAndServices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const fetchProductsAndServices = async () => {
+    try {
+      const [productsRes, servicesRes] = await Promise.all([
+        fetch("http://localhost:5001/api/products"),
+        fetch("http://localhost:5001/api/services"),
+      ]);
+      if (!productsRes.ok || !servicesRes.ok) {
+        throw new Error("Failed to fetch products or services");
+      }
+      const productsData = await productsRes.json();
+      const servicesData = await servicesRes.json();
+      setProducts(Array.isArray(productsData) ? productsData : []);
+      setServices(Array.isArray(servicesData.services) ? servicesData.services : []);
+    } catch (err) {
+      setError("Impossible de charger les produits et services");
+    }
+  };
+
+  const addToCart = (item: Product | Service, type: 'product' | 'service') => {
+    const cartItem: CartItem = {
+      id: item._id,
+      name: type === 'product' ? (item as Product).nomProduit : (item as Service).name,
+      price: type === 'product' ? (item as Product).prix : (item as Service).price,
+      type,
+    };
+    setCart([...cart, cartItem]);
+  };
+
+    useEffect(() => {
+    const total = cart.reduce((sum, item) => sum + item.price, 0);
+    setCaisseTotal(total);
+  }, [cart]);
+
+  const handleCloseDay = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch("http://localhost:5001/api/worker/close-day", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ cart, total: caisseTotal }),
+      });
+
+      if (!res.ok) throw new Error("Failed to close day");
+
+      const data = await res.json();
+      setLastSaleTotal(data.sale.total);
+      setIsCaisseOpen(false);
+      setCart([]);
+    } catch (err) {
+      setError("Impossible de fermer la journée");
+    }
+  };
 
   const updateStatus = async (
     id: string,
@@ -119,11 +198,85 @@ export default function WorkerDashboard() {
   return (
     <main className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 text-white pt-24 p-6">
       <div className="max-w-6xl mx-auto">
-        <h1 className="text-4xl font-bold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-600">
-          Tableau de bord Travailleur
-        </h1>
+                <div className="flex justify-between items-center mb-8">
+          <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-600">
+            Tableau de bord Travailleur
+          </h1>
+          <div>
+            {!isCaisseOpen ? (
+              <button
+                onClick={() => setIsCaisseOpen(true)}
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg font-semibold text-white shadow-lg transition-transform transform hover:scale-105"
+              >
+                Ouvrir la journée
+              </button>
+            ) : (
+              <button
+                onClick={handleCloseDay}
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-semibold text-white shadow-lg transition-transform transform hover:scale-105"
+              >
+                Fermer la journée
+              </button>
+            )}
+          </div>
+        </div>
 
-        {error && <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-lg">{error}</div>}
+                        {error && <div className="mb-6 p-4 bg-red-900/30 border border-red-700 rounded-lg">{error}</div>}
+
+        {lastSaleTotal !== null && (
+          <div className="mb-8 bg-green-900/30 border border-green-700 rounded-2xl p-6 text-center">
+            <h2 className="text-2xl font-bold text-green-400">Dernière clôture de journée</h2>
+            <p className="text-4xl font-bold mt-2">{lastSaleTotal.toFixed(2)}€</p>
+          </div>
+        )}
+
+
+        {isCaisseOpen && (
+          <div className="mb-8 bg-black/30 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg p-6">
+            <h2 className="text-2xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Caisse</h2>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
+              <div>
+                <h3 className="text-xl font-semibold mb-4 text-sky-400">Services</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {services.map((service) => (
+                    <div key={service._id} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
+                      <span>{service.name} - {service.price.toFixed(2)}€</span>
+                      <button onClick={() => addToCart(service, 'service')} className="px-3 py-1 bg-sky-600 hover:bg-sky-700 rounded-md text-sm">Ajouter</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <h3 className="text-xl font-semibold mb-4 text-purple-400">Produits</h3>
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                  {products.map((product) => (
+                    <div key={product._id} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
+                      <span>{product.nomProduit} - {product.prix.toFixed(2)}€</span>
+                      <button onClick={() => addToCart(product, 'product')} className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded-md text-sm">Ajouter</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold mb-4 text-green-400">Panier</h3>
+              <div className="space-y-2 bg-black/20 p-4 rounded-lg max-h-60 overflow-y-auto pr-2">
+                {cart.length === 0 ? (
+                  <p className="text-gray-400">Le panier est vide.</p>
+                ) : (
+                  cart.map((item, index) => (
+                    <div key={index} className="flex justify-between items-center">
+                      <span>{item.name}</span>
+                      <span>{item.price.toFixed(2)}€</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="text-right text-xl font-bold">Total: {caisseTotal.toFixed(2)}€</div>
+          </div>
+        )}
+
 
         <div className="bg-black/30 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg">
           {reservations.length === 0 ? (

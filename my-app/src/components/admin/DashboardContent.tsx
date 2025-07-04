@@ -8,6 +8,16 @@ import { motion } from 'framer-motion'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
 
+interface Sale {
+  _id: string;
+  worker: {
+    _id: string;
+    name: string;
+  };
+  date: string;
+  total: number;
+}
+
 interface DashboardStats {
   travailleursCount: number
   clientsCount: number
@@ -24,7 +34,10 @@ export default function DashboardContent() {
   const [animatedTravailleurs, setAnimatedTravailleurs] = useState(0)
   const [animatedClients, setAnimatedClients] = useState(0)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+    const [error, setError] = useState('')
+  const [sales, setSales] = useState<Sale[]>([])
+  const [salesLoading, setSalesLoading] = useState(true)
+  const [salesError, setSalesError] = useState('')
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -51,6 +64,34 @@ export default function DashboardContent() {
     }
 
     fetchStats()
+  }, [])
+
+  useEffect(() => {
+    const fetchSales = async () => {
+      try {
+        const token = localStorage.getItem('token')
+        if (!token) {
+          throw new Error('No token found')
+        }
+        const response = await fetch('http://localhost:5001/api/admin/sales', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        if (!response.ok) {
+          throw new Error('Failed to fetch sales')
+        }
+        const data = await response.json()
+        setSales(data)
+      } catch (err: any) {
+        setSalesError(err.message || 'Failed to load sales data')
+        console.error(err)
+      } finally {
+        setSalesLoading(false)
+      }
+    }
+
+    fetchSales()
   }, [])
 
   const animateCounter = (setter: (v: number) => void, target: number) => {
@@ -197,6 +238,44 @@ export default function DashboardContent() {
             />
           </div>
         </motion.div>
+      </motion.div>
+
+      {/* Sales Report Section */}
+      <motion.div variants={itemVariants} className="mt-8 bg-black/30 backdrop-blur-lg p-6 rounded-2xl border border-white/10 shadow-lg">
+        <h2 className="text-xl font-semibold text-white mb-4">Rapport des Ventes Journalières</h2>
+        {salesLoading ? (
+          <div className="h-40 w-full bg-white/10 rounded animate-pulse"></div>
+        ) : salesError ? (
+          <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg" role="alert">
+            <strong className="font-bold">Error!</strong>
+            <span className="block sm:inline"> {salesError}</span>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/10">
+              <thead className="bg-white/5">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Travailleur</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Montant Total</th>
+                </tr>
+              </thead>
+              <tbody className="bg-black/20 divide-y divide-white/10">
+                {sales.length > 0 ? sales.map((sale) => (
+                  <tr key={sale._id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{sale.worker?.name || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{new Date(sale.date).toLocaleDateString()}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{sale.total.toFixed(2)} €</td>
+                  </tr>
+                )) : (
+                  <tr>
+                    <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-400">Aucune vente enregistrée pour le moment.</td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </motion.div>
     </motion.div>
   )

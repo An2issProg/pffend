@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { motion } from 'framer-motion';
-import { FiSearch, FiShoppingCart, FiArrowRight, FiWind, FiBox, FiDroplet, FiScissors, FiSun, FiZap, FiMoreHorizontal, FiImage } from 'react-icons/fi';
+import { FiSearch, FiShoppingCart, FiArrowLeft, FiArrowRight, FiWind, FiBox, FiDroplet, FiScissors, FiSun, FiZap, FiMoreHorizontal, FiImage } from 'react-icons/fi';
 import AuroraBackground from '../components/AuroraBackground';
 import { Product } from '../../types';
 
@@ -117,18 +117,27 @@ export default function ProductsPage() {
             <h1 className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-sky-300 via-emerald-300 to-teal-300 bg-clip-text text-transparent drop-shadow-xl">
               Découvrez Nos Produits
             </h1>
-            <Link 
-              href="/panier" 
-              className="relative px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-lg rounded-full text-white font-medium flex items-center gap-2 transition-all duration-300 border border-white/20 hover:border-sky-400/50"
-            >
-              <FiShoppingCart className="w-5 h-5" />
-              Voir le panier
-              {cartItemsCount > 0 && (
-                <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
-                  {cartItemsCount}
-                </span>
-              )}
-            </Link>
+            <div className="flex items-center gap-4">
+              <Link 
+                href="/dashboard" 
+                className="px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-lg rounded-full text-white font-medium flex items-center gap-2 transition-all duration-300 border border-white/20 hover:border-sky-400/50"
+              >
+                <FiArrowLeft className="w-5 h-5" />
+                Retour
+              </Link>
+              <Link 
+                href="/reservation" 
+                className="relative px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-lg rounded-full text-white font-medium flex items-center gap-2 transition-all duration-300 border border-white/20 hover:border-sky-400/50"
+              >
+                <FiShoppingCart className="w-5 h-5" />
+                Voir le panier
+                {cartItemsCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                    {cartItemsCount}
+                  </span>
+                )}
+              </Link>
+            </div>
           </div>
           <p className="text-lg text-white/70 max-w-2xl mx-auto">Des solutions de nettoyage professionnelles pour un quotidien impeccable.</p>
         </div>

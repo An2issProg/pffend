@@ -2,22 +2,22 @@
 
 import { useState, useEffect, ReactNode, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiCalendar, FiMapPin, FiChevronDown, FiChevronUp, FiShoppingCart, FiAlertCircle } from 'react-icons/fi';
-import { IoIosArrowBack } from 'react-icons/io';
-import { FaWallet } from 'react-icons/fa';
+import { FiCalendar, FiMapPin, FiShoppingCart, FiAlertCircle, FiArrowLeft, FiCheckCircle, FiPlus, FiMinus, FiTrash2 } from 'react-icons/fi';
 import { TbTruck, TbTruckDelivery } from 'react-icons/tb';
+import { motion } from 'framer-motion';
 import { CartItem } from '../../types';
-import type { Location } from '../components/LocationPicker'; // Use type-only import for Location
+import type { Location } from '../components/LocationPicker';
+import AuroraBackground from '../components/AuroraBackground';
 
 import dynamic from 'next/dynamic';
 
 const LocationPicker = dynamic(() => import('../components/LocationPicker'), { 
   ssr: false,
-  loading: () => <div className="h-[200px] w-full bg-gray-200 rounded-xl animate-pulse"></div>
+  loading: () => <div className="h-[200px] w-full bg-white/10 rounded-xl animate-pulse"></div>
 });
 
 const getNext7Days = () => {
-  const days = ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'];
+  const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
   const result = [];
   for (let i = 0; i < 7; i++) {
     const date = new Date();
@@ -31,24 +31,24 @@ const getNext7Days = () => {
   return result;
 };
 
-const timeSlots = ['8:00 - 10:00', '10:00 - 12:00', '12:00 - 14:00', '14:00 - 16:00'];
+const timeSlots = ['08:00 - 10:00', '10:00 - 12:00', '12:00 - 14:00', '14:00 - 16:00', '16:00 - 18:00'];
 const availableDays = getNext7Days();
 
-const AccordionCard = ({ title, icon, children, defaultOpen = false }: { title: string, icon: ReactNode, children: ReactNode, defaultOpen?: boolean }) => {
-  const [isOpen, setIsOpen] = useState(defaultOpen);
-  return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-hidden mb-4">
-      <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center p-4 text-left">
-        <div className="flex items-center gap-3">
-          <div className="text-green-500">{icon}</div>
-          <span className="font-semibold text-gray-800">{title}</span>
-        </div>
-        {isOpen ? <FiChevronUp className="text-gray-500" /> : <FiChevronDown className="text-gray-500" />}
-      </button>
-      {isOpen && <div className="p-4 border-t border-gray-100">{children}</div>}
+const SectionWrapper = ({ title, icon, children }: { title: string, icon: ReactNode, children: ReactNode }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    className="bg-black/30 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-2xl mb-6"
+  >
+    <div className="flex items-center gap-4 mb-4">
+      <div className="text-sky-400">{icon}</div>
+      <h2 className="text-xl font-bold text-white">{title}</h2>
     </div>
-  );
-};
+    <div className="space-y-4">{children}</div>
+  </motion.div>
+);
+
 
 export default function ReservationPage() {
   const router = useRouter();
@@ -64,6 +64,23 @@ export default function ReservationPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  const updateQuantity = (_id: string, quantity: number) => {
+    if (quantity < 1) return;
+    const updatedCart = cartItems.map(item => 
+      item._id === _id ? { ...item, quantity } : item
+    );
+    setCartItems(updatedCart);
+    localStorage.setItem('panier', JSON.stringify(updatedCart));
+    window.dispatchEvent(new Event('cartUpdated'));
+  };
+
+  const removeFromCart = (_id: string) => {
+    const updatedCart = cartItems.filter(item => item._id !== _id);
+    setCartItems(updatedCart);
+    localStorage.setItem('panier', JSON.stringify(updatedCart));
+    window.dispatchEvent(new Event('cartUpdated'));
+  };
+
   const handlePickupLocationSelect = (location: Location) => {
     setPickupLocation(location);
   };
@@ -77,12 +94,7 @@ export default function ReservationPage() {
     if (rawCart) {
       try {
         const parsedCart = JSON.parse(rawCart);
-        if (Array.isArray(parsedCart)) {
-          setCartItems(parsedCart);
-        } else {
-          console.error("Cart data is not an array:", parsedCart);
-          localStorage.removeItem('panier');
-        }
+        setCartItems(Array.isArray(parsedCart) ? parsedCart : []);
       } catch (error) {
         console.error("Failed to parse cart from localStorage", error);
         localStorage.removeItem('panier');
@@ -103,8 +115,6 @@ export default function ReservationPage() {
       setError('Veuillez sélectionner une adresse, une date et une heure pour la livraison.');
       return;
     }
-
-
     
     setError('');
     setLoading(true);
@@ -114,14 +124,12 @@ export default function ReservationPage() {
 
       const finalDeliveryLocation = useSameAddress ? pickupLocation : deliveryLocation;
 
-      // The validation checks at the top ensure that `pickupLocation` and `finalDeliveryLocation` are not null here.
       const getStartTime = (timeRange: string) => timeRange.split(' - ')[0];
       const buildIso = (dateStr: string, timeRange: string) => {
         const [h, m] = getStartTime(timeRange).split(':');
-        const hh = h.padStart(2, '0');
-        const mm = m.padStart(2, '0');
-        return new Date(`${dateStr}T${hh}:${mm}:00`).toISOString();
+        return new Date(`${dateStr}T${h.padStart(2, '0')}:${m.padStart(2, '0')}:00`).toISOString();
       };
+      
       const pickupIso = buildIso(pickupDate, pickupTime);
       const deliveryIso = buildIso(deliveryDate, deliveryTime);
 
@@ -131,7 +139,6 @@ export default function ReservationPage() {
         pickupLocation: { type: 'Point', coordinates: [pickupLocation.lng, pickupLocation.lat] },
         deliveryLocation: { type: 'Point', coordinates: [finalDeliveryLocation!.lng, finalDeliveryLocation!.lat] },
         services: cartItems.map(item => ({ name: item.nomProduit, quantity: item.quantity })),
-        
       };
 
       const res = await fetch('http://localhost:5001/api/reservations', {
@@ -155,103 +162,182 @@ export default function ReservationPage() {
     }
   };
 
-    if (success) {
+  if (success) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-blue-50 p-4 text-center">
-        <div className="bg-white p-8 rounded-2xl shadow-lg">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-4xl">✅</span>
-          </div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-2">Réservation envoyée !</h1>
-          <p className="text-gray-600 mb-6">En attente de la confirmation d'un travailleur.</p>
-          <button onClick={() => router.push('/')} className="w-full bg-blue-500 text-white font-bold py-3 rounded-xl hover:bg-blue-600 transition-colors">
-            Retour à l'accueil
-          </button>
+      <AuroraBackground>
+        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center text-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, type: 'spring' }}
+            className="bg-black/30 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl max-w-md w-full"
+          >
+            <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FiCheckCircle className="text-5xl text-green-400" />
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Réservation envoyée !</h1>
+            <p className="text-white/70 mb-8">Nous vous notifierons dès qu'un travailleur aura confirmé votre demande.</p>
+            <button 
+              onClick={() => router.push('/')} 
+              className="w-full bg-gradient-to-r from-sky-500 to-emerald-500 text-white font-bold py-3 rounded-full hover:from-sky-400 hover:to-emerald-400 transition-all duration-300 transform hover:scale-105 shadow-lg"
+            >
+              Retour à l'accueil
+            </button>
+          </motion.div>
         </div>
-      </div>
+      </AuroraBackground>
     );
   }
 
   return (
-    <div className="min-h-screen bg-blue-50 font-sans">
-      <header className="bg-blue-100/50 backdrop-blur-lg p-4 flex justify-between items-center sticky top-0 z-10 rounded-b-3xl">
-                 <button onClick={() => router.back()} className="text-gray-700">
-          <IoIosArrowBack size={24} />
-        </button>
-        <div className="flex items-center gap-2">
-          <FiCalendar className="text-gray-700" />
-          <h1 className="font-bold text-lg text-gray-800">Planifier</h1>
+    <AuroraBackground>
+      <main className="relative z-10 container mx-auto px-4 sm:px-6 py-24 pb-40">
+        <div className="flex justify-between items-center mb-12">
+          <button onClick={() => router.back()} className="flex items-center gap-2 text-white/80 hover:text-white transition-colors">
+            <FiArrowLeft size={22} />
+            <span className="font-semibold">Retour</span>
+          </button>
+          <h1 className="text-4xl md:text-5xl font-extrabold bg-gradient-to-r from-sky-300 via-emerald-300 to-teal-300 bg-clip-text text-transparent drop-shadow-xl">
+            Planifier une Réservation
+          </h1>
+          <div className="w-24"></div> {/* Spacer */}
         </div>
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2 bg-white rounded-full px-3 py-1 text-sm shadow-sm">
-            <FaWallet className="text-blue-500" />
-            <span className="font-semibold">0</span>
-            <button className="bg-blue-500 text-white rounded-full w-4 h-4 text-xs">+</button>
-          </div>
-          <div className="relative">
-            <FiShoppingCart size={24} className="text-gray-700" />
-            {totalItems > 0 && (
-              <span className="absolute -top-1 -right-2 bg-red-500 text-white text-xs font-bold rounded-full h-4 w-4 flex items-center justify-center">
-                {totalItems}
-              </span>
-            )}
-          </div>
-        </div>
-      </header>
 
-      <main className="p-4 pb-32">
-        <AccordionCard title={`Vos Articles (${totalItems})`} icon={<FiShoppingCart size={20} />} defaultOpen>
-            <div className="space-y-2">
-                {cartItems.map(item => (
-                    <div key={item._id} className="flex justify-between items-center text-sm">
-                        <span className="text-gray-700">{item.quantity} x {item.nomProduit}</span>
-                        <span className="font-semibold text-gray-800">{(item.prix * item.quantity).toFixed(3)} dt</span>
+        <div className="max-w-4xl mx-auto">
+          <SectionWrapper title={`Vos Articles (${totalItems})`} icon={<FiShoppingCart size={24} />}>
+            <div className="space-y-4">
+              {cartItems.length > 0 ? cartItems.map(item => (
+                <div key={item._id} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
+                  <div className="flex items-center gap-4">
+                    <img src={item.imageUrl || '/placeholder.png'} alt={item.nomProduit} width={64} height={64} className="rounded-md object-cover w-16 h-16" />
+                    <div>
+                      <h3 className="font-semibold text-white">{item.nomProduit}</h3>
+                      <p className="text-sky-400 text-sm font-bold">{(item.prix).toFixed(2)} DT</p>
                     </div>
-                ))}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 bg-black/20 rounded-full p-1">
+                      <button onClick={() => updateQuantity(item._id, item.quantity - 1)} className="p-1.5 rounded-full hover:bg-white/20 transition-colors"><FiMinus className="text-white/80"/></button>
+                      <span className="font-bold text-white w-4 text-center">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item._id, item.quantity + 1)} className="p-1.5 rounded-full hover:bg-white/20 transition-colors"><FiPlus className="text-white/80"/></button>
+                    </div>
+                    <button onClick={() => removeFromCart(item._id)} className="text-red-500 hover:text-red-400 p-2">
+                      <FiTrash2 size={20} />
+                    </button>
+                  </div>
+                </div>
+              )) : (
+                <p className="text-white/60 text-center py-4">Votre panier est vide.</p>
+              )}
             </div>
-        </AccordionCard>
+          </SectionWrapper>
 
-        {/* Pickup Section */}
-        <section className="mb-6">
-          <div className="flex items-center gap-3 mb-4"><TbTruck size={28} className="text-gray-700" /><h2 className="text-xl font-bold text-gray-800">Ramassage</h2></div>
-          <AccordionCard title="Adresse" icon={<FiMapPin size={20} />} defaultOpen><LocationPicker onLocationSelect={handlePickupLocationSelect} selectedLocation={pickupLocation} /></AccordionCard>
-          <AccordionCard title="Date et heure" icon={<FiCalendar size={20} />} defaultOpen>
-            <div className="flex justify-between items-center mb-2"><label className="font-semibold text-sm text-gray-600">Choisir date</label><span className="text-sm font-medium text-blue-600 capitalize">{currentMonthName}</span></div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {availableDays.map(day => <button key={day.fullDate} onClick={() => setPickupDate(day.fullDate)} className={`flex-shrink-0 text-center px-4 py-2 rounded-lg border-2 ${pickupDate === day.fullDate ? 'bg-blue-500 text-white' : 'bg-white'}`}><div className="text-xs">{day.dayName}</div><div className="font-bold">{day.dayNumber}</div></button>)}
+          <SectionWrapper title="Ramassage" icon={<TbTruck size={28} />}>
+            <h3 className="font-semibold text-white/80 mb-2">Adresse de ramassage</h3>
+            <LocationPicker onLocationSelect={handlePickupLocationSelect} selectedLocation={pickupLocation} />
+            <div className="grid md:grid-cols-2 gap-6 pt-4">
+              <div>
+                <h3 className="font-semibold text-white/80 mb-3 flex justify-between items-center">
+                  <span>Date de ramassage</span>
+                  <span className="text-sm font-medium text-sky-400 capitalize">{currentMonthName}</span>
+                </h3>
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2">
+                  {availableDays.map(day => 
+                    <button key={day.fullDate} onClick={() => setPickupDate(day.fullDate)} className={`flex-shrink-0 text-center px-3 py-2 rounded-lg border-2 transition-all duration-200 ${pickupDate === day.fullDate ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white/5 border-white/20 text-white/80 hover:bg-white/10'}`}>
+                      <div className="text-xs">{day.dayName}</div>
+                      <div className="font-bold text-lg">{day.dayNumber}</div>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white/80 mb-3">Heure de ramassage</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                  {timeSlots.map(slot => 
+                    <button key={slot} onClick={() => setPickupTime(slot)} className={`px-2 py-3 rounded-lg border-2 text-sm font-semibold transition-all duration-200 ${pickupTime === slot ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white/5 border-white/20 text-white/80 hover:bg-white/10'}`}>
+                      {slot}
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-            <div className="mt-4"><label className="font-semibold text-sm text-gray-600 mb-2 block">Choisir heure</label><div className="grid grid-cols-3 gap-2">{timeSlots.map(slot => <button key={slot} onClick={() => setPickupTime(slot)} className={`px-2 py-3 rounded-lg border-2 text-sm ${pickupTime === slot ? 'bg-blue-500 text-white' : 'bg-white'}`}>{slot}</button>)}</div></div>
-          </AccordionCard>
-        </section>
+          </SectionWrapper>
 
-        {/* Delivery Section */}
-        <section>
-          <div className="flex items-center gap-3 mb-4"><TbTruckDelivery size={28} className="text-gray-700" /><h2 className="text-xl font-bold text-gray-800">Livraison</h2></div>
-          <AccordionCard title="Adresse" icon={<FiMapPin size={20} />}>
-            <div className="flex justify-between items-center mb-4"><span className="text-gray-600">Même adresse que le ramassage</span><label className="relative inline-flex items-center cursor-pointer"><input type="checkbox" checked={useSameAddress} onChange={() => setUseSameAddress(!useSameAddress)} className="sr-only peer" /><div className="w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div></label></div>
-            {!useSameAddress && <LocationPicker onLocationSelect={handleDeliveryLocationSelect} selectedLocation={deliveryLocation} />}
-          </AccordionCard>
-          <AccordionCard title="Date et heure" icon={<FiCalendar size={20} />}>
-            <div className="flex justify-between items-center mb-2"><label className="font-semibold text-sm text-gray-600">Choisir date</label><span className="text-sm font-medium text-blue-600 capitalize">{currentMonthName}</span></div>
-            <div className="flex gap-2 overflow-x-auto pb-2">
-              {availableDays.map(day => <button key={day.fullDate} onClick={() => setDeliveryDate(day.fullDate)} className={`flex-shrink-0 text-center px-4 py-2 rounded-lg border-2 ${deliveryDate === day.fullDate ? 'bg-blue-500 text-white' : 'bg-white'}`}><div className="text-xs">{day.dayName}</div><div className="font-bold">{day.dayNumber}</div></button>)}
+          <SectionWrapper title="Livraison" icon={<TbTruckDelivery size={28} />}>
+            <div className="flex justify-between items-center mb-4">
+              <span className="font-semibold text-white/80">Même adresse que le ramassage</span>
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={useSameAddress} onChange={() => setUseSameAddress(!useSameAddress)} className="sr-only peer" />
+                <div className="w-11 h-6 bg-gray-600 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-sky-500"></div>
+              </label>
             </div>
-            <div className="mt-4"><label className="font-semibold text-sm text-gray-600 mb-2 block">Choisir heure</label><div className="grid grid-cols-3 gap-2">{timeSlots.map(slot => <button key={slot} onClick={() => setDeliveryTime(slot)} className={`px-2 py-3 rounded-lg border-2 text-sm ${deliveryTime === slot ? 'bg-blue-500 text-white' : 'bg-white'}`}>{slot}</button>)}</div></div>
-          </AccordionCard>
-        </section>
+            {!useSameAddress && (
+              <div className="mt-4">
+                <h3 className="font-semibold text-white/80 mb-2">Adresse de livraison</h3>
+                <LocationPicker onLocationSelect={handleDeliveryLocationSelect} selectedLocation={deliveryLocation} />
+              </div>
+            )}
+            <div className="grid md:grid-cols-2 gap-6 pt-4">
+              <div>
+                <h3 className="font-semibold text-white/80 mb-3 flex justify-between items-center">
+                  <span>Date de livraison</span>
+                  <span className="text-sm font-medium text-sky-400 capitalize">{currentMonthName}</span>
+                </h3>
+                <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2">
+                  {availableDays.map(day => 
+                    <button key={day.fullDate} onClick={() => setDeliveryDate(day.fullDate)} className={`flex-shrink-0 text-center px-3 py-2 rounded-lg border-2 transition-all duration-200 ${deliveryDate === day.fullDate ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white/5 border-white/20 text-white/80 hover:bg-white/10'}`}>
+                      <div className="text-xs">{day.dayName}</div>
+                      <div className="font-bold text-lg">{day.dayNumber}</div>
+                    </button>
+                  )}
+                </div>
+              </div>
+              <div>
+                <h3 className="font-semibold text-white/80 mb-3">Heure de livraison</h3>
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
+                  {timeSlots.map(slot => 
+                    <button key={slot} onClick={() => setDeliveryTime(slot)} className={`px-2 py-3 rounded-lg border-2 text-sm font-semibold transition-all duration-200 ${deliveryTime === slot ? 'bg-sky-500 border-sky-500 text-white' : 'bg-white/5 border-white/20 text-white/80 hover:bg-white/10'}`}>
+                      {slot}
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </SectionWrapper>
 
-        {error && <div className="bg-red-100 border-red-400 text-red-700 px-4 py-3 rounded-lg my-4 flex items-center gap-2"><FiAlertCircle/><span className="block sm:inline">{error}</span></div>}
+          {error && (
+            <motion.div 
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-red-500/20 border border-red-500/50 text-red-300 px-4 py-3 rounded-lg my-4 flex items-center gap-3"
+            >
+              <FiAlertCircle/>
+              <span className="font-semibold">{error}</span>
+            </motion.div>
+          )}
+        </div>
       </main>
 
-      <footer className="sticky bottom-0 left-0 right-0 bg-gray-800 p-4 border-t border-gray-700 shadow-lg">
-          <div className="max-w-md mx-auto flex justify-between items-center">
-            <div>
-              <p className="text-lg font-bold text-white">{totalPrice.toFixed(3)} dt</p>
-              <p className="text-sm text-gray-400">{totalItems} articles</p>
-            </div>
-            <button onClick={handleSubmit} className="bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-md">Suivant</button>
+      <footer className="fixed bottom-0 left-0 right-0 z-20 p-4">
+        <motion.div 
+          initial={{ y: 100 }}
+          animate={{ y: 0 }}
+          transition={{ duration: 0.5, type: 'spring', stiffness: 100 }}
+          className="max-w-4xl mx-auto bg-black/50 backdrop-blur-lg border border-white/10 rounded-2xl p-4 flex justify-between items-center shadow-2xl"
+        >
+          <div>
+            <p className="text-lg font-bold text-white">{totalPrice.toFixed(2)} DT</p>
+            <p className="text-sm text-white/60">{totalItems} articles</p>
           </div>
-        </footer>
-    </div>
+          <button 
+            onClick={handleSubmit} 
+            disabled={loading || cartItems.length === 0}
+            className="bg-gradient-to-r from-sky-500 to-emerald-500 text-white font-bold px-8 py-3 rounded-full hover:from-sky-400 hover:to-emerald-400 transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:scale-100"
+          >
+            {loading ? 'Envoi...' : 'Réserver maintenant'}
+          </button>
+        </motion.div>
+      </footer>
+    </AuroraBackground>
   );
 }
