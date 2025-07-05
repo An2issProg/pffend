@@ -1,10 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { FiUsers, FiUserCheck, FiTrendingUp } from 'react-icons/fi'
+import { FiUsers, FiUserCheck, FiTrendingUp, FiDollarSign } from 'react-icons/fi'
 import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend } from 'chart.js'
 import { motion } from 'framer-motion'
+import AuroraBackground from '@/app/components/AuroraBackground'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
 
@@ -21,6 +22,7 @@ interface Sale {
 interface DashboardStats {
   travailleursCount: number
   clientsCount: number
+  totalRevenue?: number // Make totalRevenue optional
   recentTravailleurs: {
     _id: string
     name: string
@@ -33,8 +35,9 @@ export default function DashboardContent() {
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [animatedTravailleurs, setAnimatedTravailleurs] = useState(0)
   const [animatedClients, setAnimatedClients] = useState(0)
+  const [animatedRevenue, setAnimatedRevenue] = useState(0)
   const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
+  const [error, setError] = useState('')
   const [sales, setSales] = useState<Sale[]>([])
   const [salesLoading, setSalesLoading] = useState(true)
   const [salesError, setSalesError] = useState('')
@@ -55,6 +58,7 @@ export default function DashboardContent() {
         setStats(data)
         animateCounter(setAnimatedTravailleurs, data.travailleursCount)
         animateCounter(setAnimatedClients, data.clientsCount)
+        animateCounter(setAnimatedRevenue, data.totalRevenue || 0)
       } catch (err) {
         setError('Failed to load dashboard stats')
         console.error(err)
@@ -97,7 +101,7 @@ export default function DashboardContent() {
   const animateCounter = (setter: (v: number) => void, target: number) => {
     let start = 0
     const duration = 1000
-    const increment = Math.ceil(target / (duration / 16))
+    const increment = target > 0 ? Math.max(1, Math.ceil(target / (duration / 16))) : 0;
     const step = () => {
       start += increment
       if (start >= target) {
@@ -122,161 +126,149 @@ export default function DashboardContent() {
 
   if (loading) {
     return (
-      <div>
-        <div className="h-8 w-64 bg-white/10 rounded animate-pulse mb-8"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 border border-white/10 h-40 animate-pulse"></div>
-          ))}
+      <AuroraBackground>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-sky-400"></div>
         </div>
-        <div className="bg-black/30 backdrop-blur-lg rounded-2xl p-6 border border-white/10 h-80 animate-pulse"></div>
-      </div>
+      </AuroraBackground>
     )
   }
 
   if (error) {
     return (
-      <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg" role="alert">
-        <strong className="font-bold">Error!</strong>
-        <span className="block sm:inline"> {error}</span>
-      </div>
+      <AuroraBackground>
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="bg-red-900/50 border border-red-400/50 p-4 text-red-300 rounded-lg">
+            {error}
+          </div>
+        </div>
+      </AuroraBackground>
     )
   }
 
   return (
-    <motion.div initial="hidden" animate="visible" variants={cardVariants}>
-      <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-8">Dashboard</h1>
-      
-      <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8" variants={cardVariants}>
-        <motion.div variants={itemVariants} className="bg-black/30 backdrop-blur-lg p-6 rounded-2xl border border-white/10 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-blue-500/20 p-3 rounded-lg">
-              <FiUsers className="text-2xl text-blue-300" />
-            </div>
-            <span className="text-sm font-medium text-blue-300 bg-blue-500/10 px-2.5 py-0.5 rounded-full">Total</span>
-          </div>
-          <h3 className="text-4xl font-bold text-white mb-1">{animatedTravailleurs}</h3>
-          <p className="text-sm text-gray-400">Active Workers</p>
-        </motion.div>
+    <AuroraBackground>
+      <main className="p-6 text-white min-h-screen">
+        <motion.div 
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          <h1 className="text-4xl font-bold mb-10 text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-emerald-300">Tableau de bord Administrateur</h1>
 
-        <motion.div variants={itemVariants} className="bg-black/30 backdrop-blur-lg p-6 rounded-2xl border border-white/10 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-green-500/20 p-3 rounded-lg">
-              <FiUserCheck className="text-2xl text-green-300" />
-            </div>
-            <span className="text-sm font-medium text-green-300 bg-green-500/10 px-2.5 py-0.5 rounded-full">Total</span>
-          </div>
-          <h3 className="text-4xl font-bold text-white mb-1">{animatedClients}</h3>
-          <p className="text-sm text-gray-400">Registered Clients</p>
-        </motion.div>
+          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+            {/* Stat Cards */}
+            <StatCard icon={FiUsers} title="Travailleurs" value={animatedTravailleurs} />
+            <StatCard icon={FiUserCheck} title="Clients" value={animatedClients} />
+            <StatCard icon={FiDollarSign} title="Revenu Total" value={`€${(stats?.totalRevenue || 0).toFixed(2)}`} />
+          </motion.div>
 
-        <motion.div variants={itemVariants} className="bg-black/30 backdrop-blur-lg p-6 rounded-2xl border border-white/10 shadow-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="bg-purple-500/20 p-3 rounded-lg">
-              <FiTrendingUp className="text-2xl text-purple-300" />
-            </div>
-            <span className="text-sm font-medium text-purple-300 bg-purple-500/10 px-2.5 py-0.5 rounded-full">Growth</span>
-          </div>
-          <h3 className="text-4xl font-bold text-white mb-1">+{(stats?.travailleursCount || 0) + (stats?.clientsCount || 0)}</h3>
-          <p className="text-sm text-gray-400">Total Accounts</p>
-        </motion.div>
-      </motion.div>
+          <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+            <motion.div variants={itemVariants} className="lg:col-span-2 bg-black/30 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-2xl">
+              <h2 className="text-2xl font-bold text-white mb-6">Nouveaux Travailleurs</h2>
+              <ul className="space-y-3">
+                {stats?.recentTravailleurs.map((t) => (
+                  <li key={t._id} className="flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors">
+                    <div>
+                      <p className="font-semibold text-white/90">{t.name}</p>
+                      <p className="text-sm text-white/60">{t.email}</p>
+                    </div>
+                    <p className="text-xs text-white/50">{new Date(t.createdAt).toLocaleDateString()}</p>
+                  </li>
+                ))}
+              </ul>
+            </motion.div>
 
-      <motion.div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <motion.div variants={itemVariants} className="lg:col-span-2 bg-black/30 backdrop-blur-lg p-6 rounded-2xl border border-white/10 shadow-lg">
-          <h2 className="text-xl font-semibold text-white mb-4">Recent Workers</h2>
-          <ul className="divide-y divide-white/10">
-            {stats?.recentTravailleurs.map((t) => (
-              <li key={t._id} className="flex items-center gap-4 py-3">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-white flex items-center justify-center font-semibold">
-                  {t.name.charAt(0).toUpperCase()}
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-white">{t.name}</p>
-                  <p className="text-xs text-gray-400">{t.email}</p>
-                </div>
-                <span className="text-xs text-gray-500">{new Date(t.createdAt).toLocaleDateString()}</span>
-              </li>
-            ))}
-          </ul>
-        </motion.div>
+            <motion.div variants={itemVariants} className="bg-black/30 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-2xl">
+              <h2 className="text-2xl font-bold text-white mb-6">Croissance des Comptes</h2>
+              <div className="h-64">
+                <Line
+                  data={{
+                    labels: ['Travailleurs', 'Clients'],
+                    datasets: [{
+                      label: 'Comptes',
+                      data: [stats?.travailleursCount || 0, stats?.clientsCount || 0],
+                      backgroundColor: 'rgba(22, 163, 74, 0.2)',
+                      borderColor: 'rgba(34, 197, 94, 1)',
+                      pointBackgroundColor: 'rgba(34, 197, 94, 1)',
+                      pointBorderColor: '#fff',
+                      pointHoverBackgroundColor: '#fff',
+                      pointHoverBorderColor: 'rgba(34, 197, 94, 1)',
+                      tension: 0.4,
+                    }],
+                  }}
+                  options={{
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                      legend: { display: false },
+                      tooltip: {
+                        backgroundColor: '#1f2937',
+                        titleColor: '#e5e7eb',
+                        bodyColor: '#d1d5db',
+                      }
+                    },
+                    scales: {
+                      x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                      y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    }
+                  }}
+                />
+              </div>
+            </motion.div>
+          </motion.div>
 
-        <motion.div variants={itemVariants} className="bg-black/30 backdrop-blur-lg p-6 rounded-2xl border border-white/10 shadow-lg">
-          <h2 className="text-xl font-semibold text-white mb-4">Account Growth</h2>
-          <div className="h-64">
-            <Line
-              data={{
-                labels: ['Travailleurs', 'Clients'],
-                datasets: [{
-                  label: 'Comptes',
-                  data: [stats?.travailleursCount || 0, stats?.clientsCount || 0],
-                  backgroundColor: 'rgba(168, 85, 247, 0.2)',
-                  borderColor: 'rgba(168, 85, 247, 1)',
-                  pointBackgroundColor: 'rgba(168, 85, 247, 1)',
-                  pointBorderColor: '#fff',
-                  pointHoverBackgroundColor: '#fff',
-                  pointHoverBorderColor: 'rgba(168, 85, 247, 1)',
-                  tension: 0.4,
-                }],
-              }}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { 
-                  legend: { display: false },
-                  tooltip: {
-                    backgroundColor: '#1f2937',
-                    titleColor: '#e5e7eb',
-                    bodyColor: '#d1d5db',
-                  }
-                },
-                scales: {
-                  x: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                  y: { ticks: { color: '#9ca3af' }, grid: { color: 'rgba(255,255,255,0.1)' } },
-                }
-              }}
-            />
-          </div>
+          <motion.div variants={itemVariants} className="bg-black/30 backdrop-blur-xl p-6 rounded-2xl border border-white/10 shadow-2xl">
+            <h2 className="text-2xl font-bold text-white mb-6">Rapport des Ventes Journalières</h2>
+            {salesLoading ? (
+              <div className="h-40 w-full bg-white/10 rounded animate-pulse"></div>
+            ) : salesError ? (
+              <div className="bg-red-900/50 border border-red-400/50 p-4 text-red-300 rounded-lg">
+                {salesError}
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="min-w-full">
+                  <thead className="border-b border-white/20">
+                    <tr>
+                      <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-white/80 uppercase tracking-wider">Travailleur</th>
+                      <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-white/80 uppercase tracking-wider">Date</th>
+                      <th scope="col" className="px-6 py-4 text-left text-sm font-semibold text-white/80 uppercase tracking-wider">Montant Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/10">
+                    {sales.length > 0 ? sales.map((sale) => (
+                      <tr key={sale._id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{sale.worker?.name || 'N/A'}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-white/90">{new Date(sale.date).toLocaleDateString()}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-emerald-300 font-semibold">{sale.total.toFixed(2)} €</td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm text-center text-white/70">Aucune vente enregistrée pour le moment.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </motion.div>
         </motion.div>
-      </motion.div>
-
-      {/* Sales Report Section */}
-      <motion.div variants={itemVariants} className="mt-8 bg-black/30 backdrop-blur-lg p-6 rounded-2xl border border-white/10 shadow-lg">
-        <h2 className="text-xl font-semibold text-white mb-4">Rapport des Ventes Journalières</h2>
-        {salesLoading ? (
-          <div className="h-40 w-full bg-white/10 rounded animate-pulse"></div>
-        ) : salesError ? (
-          <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg" role="alert">
-            <strong className="font-bold">Error!</strong>
-            <span className="block sm:inline"> {salesError}</span>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-white/10">
-              <thead className="bg-white/5">
-                <tr>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Travailleur</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
-                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Montant Total</th>
-                </tr>
-              </thead>
-              <tbody className="bg-black/20 divide-y divide-white/10">
-                {sales.length > 0 ? sales.map((sale) => (
-                  <tr key={sale._id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{sale.worker?.name || 'N/A'}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{new Date(sale.date).toLocaleDateString()}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-300">{sale.total.toFixed(2)} €</td>
-                  </tr>
-                )) : (
-                  <tr>
-                    <td colSpan={3} className="px-6 py-4 whitespace-nowrap text-sm text-center text-gray-400">Aucune vente enregistrée pour le moment.</td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </motion.div>
-    </motion.div>
+      </main>
+    </AuroraBackground>
   )
 }
+
+const StatCard = ({ icon: Icon, title, value }: { icon: React.ElementType, title: string, value: string | number }) => (
+  <div className="group bg-black/30 backdrop-blur-xl p-8 rounded-2xl border border-white/10 shadow-2xl transition-all duration-300 hover:border-sky-400/50 hover:-translate-y-2">
+    <div className="flex justify-between items-start">
+      <div>
+        <p className="text-white/70 mb-1">{title}</p>
+        <p className="text-4xl font-bold text-white">{value}</p>
+      </div>
+      <div className="w-16 h-16 bg-gradient-to-br from-sky-500 to-emerald-500 rounded-xl flex items-center justify-center shadow-lg transition-all duration-300 group-hover:scale-110 group-hover:rotate-6">
+        <Icon className="w-8 h-8 text-white" />
+      </div>
+    </div>
+  </div>
+);

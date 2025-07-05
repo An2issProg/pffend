@@ -2,11 +2,11 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 const connectDB = require('./config/db');
-const siteAvailability = require('./middleware/siteAvailability');
+const maintenanceMiddleware = require('./middleware/maintenanceMiddleware');
 
 const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const superAdminRoutes = require('./routes/superAdminRoutes');
+const superAdminRoutes = require('./routes/superadminRoutes');
 const clientRoutes = require('./routes/clientRoutes');
 const productRoutes = require('./routes/productRoutes');
 const salesRoutes = require('./routes/salesRoutes');
@@ -40,7 +40,7 @@ app.use(cors({
 }));
 
 // Middleware to check if site is active (maintenance mode)
-app.use(siteAvailability);
+app.use(maintenanceMiddleware);
 
 // Request logging middleware
 app.use((req, res, next) => {
@@ -66,8 +66,8 @@ app.use('/api/reservations', reservationRoutes);
 app.use('/api/client/reservations', clientReservationRoutes);
 app.use('/api/worker/reservations', workerReservationRoutes);
 app.use('/api/worker', workerRoutes);
-app.use('/api', serviceRoutes);
 app.use('/api/admin', adminServiceRoutes);
+app.use('/api', serviceRoutes);
 
 
 app.use((err, req, res, next) => {

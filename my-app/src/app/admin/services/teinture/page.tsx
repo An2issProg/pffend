@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FiPlus, FiTrash2, FiEdit2 } from "react-icons/fi";
+import { FiPlus, FiTrash2, FiEdit } from "react-icons/fi";
 import { useRouter } from "next/navigation";
 
 interface Service {
@@ -17,6 +17,7 @@ export default function TeintureAdminPage() {
   const [error, setError] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState({ 
+    _id: null as string | null,
     subcategory: "noir", 
     name: "", 
     price: "" 
@@ -46,35 +47,66 @@ export default function TeintureAdminPage() {
   }, []);
 
   const handleSubmit = async () => {
-    const token = localStorage.getItem("token");
-    await fetch("http://localhost:5001/api/admin/services", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ 
-        category: "teinture", 
-        ...form, 
+    try {
+      const token = localStorage.getItem("token");
+      const isUpdating = !!form._id;
+      const url = isUpdating
+        ? `http://localhost:5001/api/admin/services/${form._id}`
+        : "http://localhost:5001/api/admin/services";
+      const method = isUpdating ? "PUT" : "POST";
+
+      const body = {
+        category: "teinture",
+        subcategory: form.subcategory,
+        name: form.name || form.subcategory,
         price: Number(form.price),
-        name: form.name || form.subcategory
-      }),
-    });
-    setModalOpen(false);
-    setForm({ subcategory: "noir", name: "", price: "" });
-    fetchData();
+      };
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || `Failed to ${isUpdating ? 'update' : 'create'} service`);
+      }
+
+      setModalOpen(false);
+      setForm({ _id: null, subcategory: "noir", name: "", price: "" }); // Reset form
+      fetchData();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "An error occurred");
+    }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer ce service ?")) {
+    if (!window.confirm("Êtes-vous sûr de vouloir supprimer ce service ?")) {
+      return;
+    }
+    try {
       const token = localStorage.getItem("token");
-      await fetch(`http://localhost:5001/api/admin/services/${id}`, {
+      const res = await fetch(`http://localhost:5001/api/admin/services/${id}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to delete service");
+      }
+      
       fetchData();
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Impossible de supprimer le service");
     }
   };
 
@@ -107,13 +139,8 @@ export default function TeintureAdminPage() {
                 <td className="px-4 py-2 text-gray-200">{s.name}</td>
                 <td className="px-4 py-2 text-gray-200">{s.price} dt</td>
                 <td className="px-4 py-2 flex gap-3">
-                  <button className="text-yellow-400"><FiEdit2 /></button>
-                  <button 
-                    onClick={() => handleDelete(s._id)}
-                    className="text-red-500"
-                  >
-                    <FiTrash2 />
-                  </button>
+                  <button onClick={() => { setForm({ ...s, price: String(s.price), _id: s._id }); setModalOpen(true); }} className="text-blue-400 hover:text-blue-300"><FiEdit size={18} /></button>
+                  <button onClick={() => handleDelete(s._id)} className="text-red-400 hover:text-red-300"><FiTrash2 size={18} /></button>
                 </td>
               </tr>
             ))}
@@ -122,7 +149,7 @@ export default function TeintureAdminPage() {
       )}
 
       <button
-        onClick={() => setModalOpen(true)}
+        onClick={() => { setForm({ _id: null, subcategory: "noir", name: "", price: "" }); setModalOpen(true); }}
         className="mt-6 flex items-center gap-2 bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-md shadow"
       >
         <FiPlus /> Ajouter
@@ -131,7 +158,7 @@ export default function TeintureAdminPage() {
       {modalOpen && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-gray-800 p-6 rounded-xl w-80">
-            <h2 className="text-xl mb-4">Nouveau service</h2>
+            <h2 className="text-xl mb-4">{form._id ? "Modifier le service" : "Nouveau service"}</h2>
             <select
               value={form.subcategory}
               onChange={(e) => setForm({ ...form, subcategory: e.target.value })}
@@ -168,7 +195,7 @@ export default function TeintureAdminPage() {
                 onClick={handleSubmit}
                 className="px-4 py-2 bg-pink-600 hover:bg-pink-700 rounded-md"
               >
-                Enregistrer
+                {form._id ? "Mettre à jour" : "Enregistrer"}
               </button>
             </div>
           </div>

@@ -4,46 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { motion, Variants } from 'framer-motion'
 import { FiArrowRight, FiHome, FiBriefcase, FiPackage } from 'react-icons/fi' // Using react-icons for modern icons
-
-// Aurora Background Component
-const AuroraBackground = () => (
-  <div className="fixed top-0 left-0 w-full h-full overflow-hidden z-0">
-    <div
-      className="absolute top-1/2 left-1/2 w-[150%] h-[150%] transform -translate-x-1/2 -translate-y-1/2"
-      style={{
-        background:
-          'radial-gradient(circle at 50% 50%, rgba(13, 186, 153, 0.15), rgba(14, 165, 233, 0.1), transparent 60%)',
-        animation: 'aurora-spin 20s linear infinite',
-      }}
-    ></div>
-    <div
-      className="absolute top-1/2 left-1/2 w-[120%] h-[120%] transform -translate-x-1/2 -translate-y-1/2"
-      style={{
-        background:
-          'radial-gradient(circle at 30% 70%, rgba(56, 189, 248, 0.1), transparent 50%), radial-gradient(circle at 70% 30%, rgba(16, 185, 129, 0.1), transparent 50%)',
-        animation: 'aurora-spin-reverse 25s linear infinite',
-      }}
-    ></div>
-    <style jsx>{`
-      @keyframes aurora-spin {
-        from {
-          transform: translate(-50%, -50%) rotate(0deg);
-        }
-        to {
-          transform: translate(-50%, -50%) rotate(360deg);
-        }
-      }
-      @keyframes aurora-spin-reverse {
-        from {
-          transform: translate(-50%, -50%) rotate(360deg);
-        }
-        to {
-          transform: translate(-50%, -50%) rotate(0deg);
-        }
-      }
-    `}</style>
-  </div>
-)
+import AuroraBackground from './components/AuroraBackground';
 
 // Main Home Component
 export default function Home() {
@@ -61,10 +22,8 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white relative overflow-hidden">
-      <AuroraBackground />
-
-      <main className="relative z-10 flex flex-col">
+    <AuroraBackground>
+      <main className="flex flex-col">
         {/* Hero Section */}
         <section className="h-screen flex items-center justify-center text-center">
           <motion.div
@@ -152,6 +111,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-    </div>
+    </AuroraBackground>
   )
 }

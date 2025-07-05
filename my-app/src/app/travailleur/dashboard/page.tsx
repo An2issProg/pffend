@@ -240,7 +240,7 @@ export default function WorkerDashboard() {
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {services.map((service) => (
                     <div key={service._id} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
-                      <span>{service.name} - {service.price.toFixed(2)}€</span>
+                      <span>{service.name} - {service.price.toFixed(2)}DT</span>
                       <button onClick={() => addToCart(service, 'service')} className="px-3 py-1 bg-sky-600 hover:bg-sky-700 rounded-md text-sm">Ajouter</button>
                     </div>
                   ))}
@@ -251,7 +251,7 @@ export default function WorkerDashboard() {
                 <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
                   {products.map((product) => (
                     <div key={product._id} className="flex justify-between items-center bg-white/5 p-3 rounded-lg">
-                      <span>{product.nomProduit} - {product.prix.toFixed(2)}€</span>
+                      <span>{product.nomProduit} - {product.prix.toFixed(2)}DT</span>
                       <button onClick={() => addToCart(product, 'product')} className="px-3 py-1 bg-purple-600 hover:bg-purple-700 rounded-md text-sm">Ajouter</button>
                     </div>
                   ))}
@@ -273,7 +273,7 @@ export default function WorkerDashboard() {
                 )}
               </div>
             </div>
-            <div className="text-right text-xl font-bold">Total: {caisseTotal.toFixed(2)}€</div>
+            <div className="text-right text-xl font-bold">Total: {caisseTotal.toFixed(2)}DT</div>
           </div>
         )}
 

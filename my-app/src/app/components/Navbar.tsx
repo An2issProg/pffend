@@ -1,6 +1,6 @@
 'use client'
 
-import Image from 'next/image'
+
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { FiShoppingCart } from 'react-icons/fi'
@@ -54,9 +54,13 @@ export default function Navbar() {
     const handleCartUpdate = () => updateCartCount();
     window.addEventListener('cartUpdated', handleCartUpdate);
 
+    const handleLoginSuccess = () => checkLoginStatus();
+    window.addEventListener('loginSuccess', handleLoginSuccess);
+
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('cartUpdated', handleCartUpdate);
+      window.removeEventListener('loginSuccess', handleLoginSuccess);
     };
   }, []);
 
@@ -86,7 +90,7 @@ export default function Navbar() {
     router.push('/');
   };
 
-  if (isWorkerDashboard || isUserDashboard) {
+  if (user?.role === 'travailleur') {
     const isWorker = isWorkerDashboard;
     const dashboardTitle = isWorker ? 'Tableau de bord Travailleur' : 'Mon Tableau de bord';
     const dashboardLink = isWorker ? '/travailleur/dashboard' : '/dashboard';
@@ -102,15 +106,14 @@ export default function Navbar() {
       >
         <div className="container mx-auto px-6 flex justify-between items-center h-20">
           <Link href={dashboardLink}>
-            <Image
+            <img
               src="/Yalla.png"
               alt="Logo YallaClean"
-              width={100}
-              height={100}
-              priority
               className="h-12 w-auto object-contain drop-shadow-lg"
             />
           </Link>
+
+
           <div className="flex items-center gap-4">
             {user && (
               <div className="flex items-center gap-4">
@@ -119,14 +122,9 @@ export default function Navbar() {
                   className="flex items-center gap-2 text-white/80 hover:text-white transition-colors"
                 >
                   <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-white font-bold">
-                    {user.name ? user.name.charAt(0).toUpperCase() : defaultInitial}
+                    {(user?.name ? user.name.charAt(0).toUpperCase() : defaultInitial)}
                   </div>
-                  <div className="flex flex-col text-left">
-                    <span className="font-medium">{user.name || defaultName}</span>
-                    {user.email && (
-                      <span className="text-xs text-white/60">{user.email}</span>
-                    )}
-                  </div>
+                  <span className="hidden sm:inline font-medium text-white">{user?.name || defaultName}</span>
                 </Link>
               </div>
             )}
@@ -156,15 +154,25 @@ export default function Navbar() {
     >
       <div className="container mx-auto px-6 flex justify-between items-center h-20">
         <Link href="/" className="flex items-center" aria-label="Accueil YallaClean">
-          <Image
+          <img
             src="/Yalla.png"
             alt="Logo YallaClean"
-            width={100}
-            height={100}
-            priority
-           className="h-16 w-auto object-contain"
+            className="h-16 w-auto object-contain"
           />
         </Link>
+        <div className="flex-grow">
+          {isLoggedIn && (
+            <div className="hidden md:flex justify-center items-center gap-6">
+              <Link href="/" className="text-white/80 hover:text-white transition-colors font-medium">
+                Accueil
+              </Link>
+              <Link href="/dashboard" className="text-white/80 hover:text-white transition-colors font-medium">
+                Tableau de bord
+              </Link>
+            </div>
+          )}
+        </div>
+
         <div className="flex items-center gap-4">
           {isLoggedIn ? (
             <>
@@ -186,7 +194,7 @@ export default function Navbar() {
                     <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 flex items-center justify-center text-white font-bold">
                       {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                     </div>
-                    <span className="font-medium text-white">{user?.name || 'Utilisateur'}</span>
+                    <span className="font-medium text-white hidden sm:inline">{user?.name || 'Utilisateur'}</span>
                     <svg 
                       className={`w-4 h-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} 
                       fill="none" 
@@ -205,6 +213,13 @@ export default function Navbar() {
                         <p className="text-xs text-gray-400 truncate">{user?.email || ''}</p>
                       </div>
                       <div className="py-1">
+                        <Link 
+                          href="/" 
+                          className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200 md:hidden"
+                          onClick={() => setShowDropdown(false)}
+                        >
+                          Accueil
+                        </Link>
                         <Link 
                           href="/profil" 
                           className="block px-4 py-2 text-sm text-gray-300 hover:bg-gray-700 hover:text-white transition-colors duration-200"

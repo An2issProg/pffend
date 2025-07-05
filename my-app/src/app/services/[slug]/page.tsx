@@ -58,8 +58,19 @@ export default function CategoryDetails() {
   const { slug } = useParams<{ slug: string }>();
 
   const [data, setData] = useState<Record<string, Item[]>>({});
+  const [cart, setCart] = useState<Record<string, number>>({});
+  const [globalCartSummary, setGlobalCartSummary] = useState({ totalItems: 0, totalPrice: 0 });
 
+  // Effect to fetch page-specific data and initialize local cart quantities
   useEffect(() => {
+    const existingCartRaw = localStorage.getItem('panier');
+    const existingCart: CartItem[] = existingCartRaw ? JSON.parse(existingCartRaw) : [];
+    const initialQuantities: Record<string, number> = {};
+    existingCart.forEach(item => {
+      initialQuantities[item.nomProduit] = item.quantity;
+    });
+    setCart(initialQuantities);
+
     fetch(`http://localhost:5001/api/services?category=${slug}`)
       .then((r) => r.json())
       .then((d) => {
@@ -79,63 +90,93 @@ export default function CategoryDetails() {
       .catch((e) => console.error(e));
   }, [slug]);
 
+  // Effect to calculate and sync the global cart summary for the bottom bar
+  useEffect(() => {
+    const calculateGlobalCart = () => {
+      const existingCartRaw = localStorage.getItem('panier');
+      const existingCart: CartItem[] = existingCartRaw ? JSON.parse(existingCartRaw) : [];
+      
+      const totalItems = existingCart.reduce((sum, item) => sum + item.quantity, 0);
+      const totalPrice = existingCart.reduce((sum, item) => sum + (item.prix * item.quantity), 0);
+
+      setGlobalCartSummary({ totalItems, totalPrice });
+    };
+
+    calculateGlobalCart(); // Initial calculation
+    window.addEventListener('cartUpdated', calculateGlobalCart); // Listen for our custom event
+    window.addEventListener('storage', (e) => { // Listen for changes from other tabs
+      if (e.key === 'panier') calculateGlobalCart();
+    });
+
+    return () => {
+      window.removeEventListener('cartUpdated', calculateGlobalCart);
+      window.removeEventListener('storage', (e) => {
+        if (e.key === 'panier') calculateGlobalCart();
+      });
+    };
+  }, []);
+
   const subcategories = useMemo(() => {
     return allSubcategories[slug] || allSubcategories["nettoyage"];
   }, [slug]);
 
-  const [active, setActive] = useState<string>(subcategories[0]?.key || "");
+  const [active, setActive] = useState<string>("");
 
   useEffect(() => {
-    if (subcategories.length > 0) {
+    if (subcategories.length > 0 && !active) {
       setActive(subcategories[0].key);
     }
-  }, [subcategories]);
+  }, [subcategories, active]);
 
-  const [cart, setCart] = useState<Record<string, number>>({});
-
-  const addItem = (name: string) => {
-    setCart((c) => ({ ...c, [name]: (c[name] || 0) + 1 }));
-  };
-
-  const removeItem = (name: string) => {
-    setCart((c) => {
-      const qty = (c[name] || 0) - 1;
-      const updated = { ...c };
-      if (qty <= 0) delete updated[name]; else updated[name] = qty;
-      return updated;
-    });
-  };
-
-  const total = Object.entries(cart).reduce((sum, [n, q]) => {
-    const item = (Object.values(data).flat()).find((i) => i.name === n);
-    return sum + (item ? item.price * q : 0);
-  }, 0);
-
-  const handleNext = () => {
+  const updateGlobalCart = (itemName: string, newQuantity: number) => {
     const allPageItems = Object.values(data).flat();
-    const existingCartRaw = localStorage.getItem('panier');
-    const existingCart: CartItem[] = existingCartRaw ? JSON.parse(existingCartRaw) : [];
-    const cartMap = new Map(existingCart.map(item => [item._id, item]));
+    const itemData = allPageItems.find(i => i.name === itemName);
+    if (!itemData) return;
 
-    allPageItems.forEach(pageItem => {
-      const quantityOnPage = cart[pageItem.name] || 0;
-      if (quantityOnPage > 0) {
-        cartMap.set(pageItem._id, {
-          _id: pageItem._id,
-          nomProduit: pageItem.name,
-          prix: pageItem.price,
-          quantity: quantityOnPage,
-          categorie: pageItem.categorie,
-          quantiteStock: pageItem.quantiteStock,
-        });
-      } else {
-        cartMap.delete(pageItem._id);
-      }
-    });
+    const existingCartRaw = localStorage.getItem('panier');
+    const cartMap = new Map<string, CartItem>(existingCartRaw ? JSON.parse(existingCartRaw).map((i: CartItem) => [i._id, i]) : []);
+
+    if (newQuantity > 0) {
+      cartMap.set(itemData._id, {
+        _id: itemData._id,
+        nomProduit: itemData.name,
+        prix: itemData.price,
+        quantity: newQuantity,
+        categorie: itemData.categorie,
+        quantiteStock: itemData.quantiteStock,
+      });
+    } else {
+      cartMap.delete(itemData._id);
+    }
 
     const finalCart = Array.from(cartMap.values());
     localStorage.setItem('panier', JSON.stringify(finalCart));
     window.dispatchEvent(new Event('cartUpdated'));
+  };
+
+  const addItem = (name: string) => {
+    const newQuantity = (cart[name] || 0) + 1;
+    setCart(prevCart => ({ ...prevCart, [name]: newQuantity }));
+    updateGlobalCart(name, newQuantity);
+  };
+
+  const removeItem = (name: string) => {
+    const newQuantity = (cart[name] || 0) - 1;
+    if (newQuantity < 0) return;
+
+    setCart(prevCart => {
+      const updated = { ...prevCart };
+      if (newQuantity === 0) {
+        delete updated[name];
+      } else {
+        updated[name] = newQuantity;
+      }
+      return updated;
+    });
+    updateGlobalCart(name, newQuantity);
+  };
+
+  const handleNext = () => {
     router.push("/reservation");
   };
 
@@ -184,9 +225,9 @@ export default function CategoryDetails() {
         )) || <p className="text-gray-400">Pas d'articles.</p>}
       </div>
 
-      {total > 0 && (
+      {globalCartSummary.totalItems > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-gray-900/95 backdrop-blur-lg p-4 border-t border-white/10 flex items-center justify-between">
-          <span className="font-medium">{Object.values(cart).reduce((a,b)=>a+b,0)} Article{Object.values(cart).reduce((a,b)=>a+b,0)>1?'s':''} – {total.toFixed(3)} dt</span>
+          <span className="font-medium">{globalCartSummary.totalItems} Article{globalCartSummary.totalItems > 1 ? 's' : ''} – {globalCartSummary.totalPrice.toFixed(3)} dt</span>
           <button onClick={handleNext} className="bg-pink-600 hover:bg-pink-700 px-4 py-2 rounded-md">Suivant</button>
         </div>
       )}

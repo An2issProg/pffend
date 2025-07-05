@@ -157,7 +157,9 @@ const getMe = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt
       }
     });
   } catch (error) {

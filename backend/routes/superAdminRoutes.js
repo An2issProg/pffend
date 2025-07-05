@@ -1,13 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { protect, superadmin } = require('../middleware/auth');
-const { getStatus, toggleStatus } = require('../controllers/siteController');
+const { protect, superAdmin } = require('../middleware/authMiddleware');
+const { getSiteStatus, toggleSiteStatus } = require('../controllers/superadminController');
 
-// Protect all routes
-router.use(protect);
-router.use(superadmin);
+// Protect all routes in this file with protect and superAdmin middleware
+router.use(protect, superAdmin);
 
-router.get('/site-status', getStatus);
-router.post('/site-status/toggle', toggleStatus);
+router.get('/site-status', getSiteStatus);
+router.post('/site-status/toggle', toggleSiteStatus);
 
 module.exports = router;

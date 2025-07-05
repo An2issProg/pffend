@@ -37,6 +37,7 @@ export default function Login() {
       if (response.ok) {
         localStorage.setItem('token', data.token)
         localStorage.setItem('user', JSON.stringify(data.user))
+        window.dispatchEvent(new Event('loginSuccess'));
 
         // Redirect based on user role
         switch (data.user.role) {
