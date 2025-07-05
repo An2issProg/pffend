@@ -195,13 +195,13 @@ export default function Navbar() {
                       {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                     </div>
                     <span className="font-medium text-white hidden sm:inline">{user?.name || 'Utilisateur'}</span>
-                    <svg 
-                      className={`w-4 h-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} 
-                      fill="none" 
-                      stroke="currentColor" 
-                      viewBox="0 0 24 24" 
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
+                      <svg 
+                        className={`w-4 h-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24" 
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>

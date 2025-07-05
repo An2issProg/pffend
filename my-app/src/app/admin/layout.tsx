@@ -28,9 +28,9 @@ export default function AdminRootLayout({ children }: AdminLayoutProps) {
         <div className="flex min-h-screen">
           <aside className="w-64 bg-black/30 backdrop-blur-lg p-6 flex-shrink-0 border-r border-white/10">
             <div className="mb-12 text-center">
-              <Link href="/" className="inline-block">
-                <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">Admin Panel</span>
-              </Link>
+              <div className="inline-block">
+                <span className="text-2xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 select-none">Admin Panel</span>
+              </div>
             </div>
             <nav className="flex flex-col space-y-2">
               {navItems.map((item) => (

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import axios from 'axios';
-import { FiEdit, FiTrash2, FiPlus, FiCheck, FiX } from 'react-icons/fi';
+import { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import axios, { AxiosError } from 'axios';
+import { FiEdit, FiTrash2, FiCheck, FiX, FiImage, FiPlusCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 
 interface Product {
@@ -10,6 +10,19 @@ interface Product {
   nomProduit: string;
   prix: number;
   quantiteStock: number;
+  image?: string;
+}
+
+interface ProductFormData {
+  nomProduit: string;
+  prix: number | string;
+  quantiteStock: number | string;
+  image?: string;
+}
+
+interface ApiErrorResponse {
+  message?: string;
+  error?: string | { message: string };
 }
 
 const Products = () => {
@@ -17,7 +30,45 @@ const Products = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [newProduct, setNewProduct] = useState({ nomProduit: '', prix: 0, quantiteStock: 0 });
+  const [newProduct, setNewProduct] = useState<ProductFormData>({ 
+    nomProduit: '', 
+    prix: '', 
+    quantiteStock: '',
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [editingImageFile, setEditingImageFile] = useState<File | null>(null);
+  const [editingImagePreview, setEditingImagePreview] = useState<string | null>(null);
+
+  // Handle image change for new product
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setImageFile(file);
+      
+      // Create image preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Handle image change for editing product
+  const handleEditImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setEditingImageFile(file);
+      
+      // Create image preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditingImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const fetchProducts = async () => {
     try {
@@ -44,109 +95,332 @@ const Products = () => {
     fetchProducts();
   }, []);
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
+    
+    // Client-side validation
+    if (!newProduct.nomProduit?.trim()) {
+      setError('Product name is required');
+      return;
+    }
+    
+    const price = parseFloat(newProduct.prix as string);
+    if (isNaN(price) || price <= 0) {
+      setError('Please enter a valid price');
+      return;
+    }
+    
+    const quantity = parseInt(newProduct.quantiteStock as string, 10);
+    if (isNaN(quantity) || quantity < 0) {
+      setError('Please enter a valid quantity');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5001/api/admin/products', newProduct, {
-        headers: { Authorization: `Bearer ${token}` },
+      if (!token) {
+        setError('No authentication token found. Please log in.');
+        return;
+      }
+      
+      const formData = new FormData();
+      
+      // Add text fields
+      formData.append('nomProduit', newProduct.nomProduit.trim());
+      formData.append('prix', price.toString());
+      formData.append('quantiteStock', quantity.toString());
+      
+      // Add image file if exists
+      if (imageFile) {
+        formData.append('image', imageFile);
+      }
+      
+      // Log the form data being sent
+      const formDataObj: Record<string, any> = {};
+      formData.forEach((value, key) => {
+        formDataObj[key] = value instanceof File ? `${key} (File)` : value;
       });
-      setNewProduct({ nomProduit: '', prix: 0, quantiteStock: 0 });
+      console.log('Sending form data:', formDataObj);
+      
+      // Send the request
+      const response = await axios.post('http://localhost:5001/api/admin/products', formData, {
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data'
+        },
+      });
+      
+      console.log('Product created:', response.data);
+      
+      // Reset form
+      setNewProduct({ 
+        nomProduit: '', 
+        prix: '', 
+        quantiteStock: '' 
+      });
+      setImageFile(null);
+      setImagePreview(null);
+      
+      // Refresh the products list
       fetchProducts();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error creating product');
+      console.error('Error creating product:', err);
+      const errorResponse = err.response?.data as ApiErrorResponse | undefined;
+      const errorMessage = errorResponse?.message || 
+                         (typeof errorResponse?.error === 'string' ? errorResponse.error : errorResponse?.error?.message) || 
+                         'Failed to create product. Please try again.';
+      setError(errorMessage);
     }
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
+  const handleUpdate = async (e: FormEvent) => {
     e.preventDefault();
+    setError('');
+    
     if (!editingProduct) return;
+    
+    // Extract and validate data
+    const { _id, nomProduit, prix, quantiteStock } = editingProduct;
+    
+    if (!nomProduit?.trim()) {
+      setError('Product name is required');
+      return;
+    }
+    
+    const price = Number(prix);
+    if (isNaN(price) || price <= 0) {
+      setError('Please enter a valid price');
+      return;
+    }
+    
+    const quantity = Number(quantiteStock);
+    if (isNaN(quantity) || quantity < 0) {
+      setError('Please enter a valid quantity');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('token');
-      await axios.put(`http://localhost:5001/api/admin/products/${editingProduct._id}`, editingProduct, {
-        headers: { Authorization: `Bearer ${token}` },
+      if (!token) {
+        setError('No authentication token found. Please log in.');
+        return;
+      }
+      
+      const formData = new FormData();
+      
+      // Add text fields
+      formData.append('nomProduit', nomProduit.trim());
+      formData.append('prix', price.toString());
+      formData.append('quantiteStock', quantity.toString());
+      
+      // Add image file if exists
+      if (editingImageFile) {
+        formData.append('image', editingImageFile);
+      }
+      
+      // Log the form data being sent
+      const formDataObj: Record<string, any> = {};
+      formData.forEach((value, key) => {
+        formDataObj[key] = value instanceof File ? `${key} (File)` : value;
       });
+      console.log('Updating product with data:', formDataObj);
+      
+      // Send the request
+      const response = await axios.put(
+        `http://localhost:5001/api/admin/products/${_id}`, 
+        formData,
+        {
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data'
+          },
+        }
+      );
+      
+      console.log('Product updated:', response.data);
+      
+      // Reset form and refresh data
       setEditingProduct(null);
+      setEditingImageFile(null);
+      setEditingImagePreview(null);
       fetchProducts();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error updating product');
+      console.error('Error updating product:', err);
+      const errorResponse = err.response?.data as ApiErrorResponse | undefined;
+      const errorMessage = errorResponse?.message || 
+                         (typeof errorResponse?.error === 'string' ? errorResponse.error : errorResponse?.error?.message) || 
+                         err.message ||
+                         'Failed to update product. Please try again.';
+      setError(errorMessage);
     }
   };
 
   const handleDelete = async (id: string) => {
     if (!window.confirm('Are you sure you want to delete this product?')) return;
+    
     try {
       const token = localStorage.getItem('token');
+      if (!token) {
+        setError('No authentication token found. Please log in.');
+        return;
+      }
+      
       await axios.delete(`http://localhost:5001/api/admin/products/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
       });
+      
       fetchProducts();
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error deleting product');
+      console.error('Error deleting product:', err);
+      const errorResponse = err.response?.data as ApiErrorResponse | undefined;
+      const errorMessage = errorResponse?.message || 
+                         (typeof errorResponse?.error === 'string' ? errorResponse.error : errorResponse?.error?.message) || 
+                         err.message ||
+                         'Failed to delete product. Please try again.';
+      setError(errorMessage);
     }
   };
 
-  if (loading) return <div className="text-center py-10 text-gray-400">Loading Products...</div>;
-  if (error) return <div className="bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg">{error}</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-400">Loading products...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-4 sm:p-6">
-      <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600 mb-8">Product Management</h1>
+    <div className="p-4 sm:p-6 max-w-7xl mx-auto">
+      <div className="flex justify-between items-center mb-8">
+        <h1 className="text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-pink-600">
+          Product Management
+        </h1>
+      </div>
+      
+      {error && (
+        <div className="mb-6 bg-red-500/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
       
       <motion.div 
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-8 p-6 bg-black/30 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg"
+        className="mb-8 p-8 bg-black/30 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg"
       >
-        <h2 className="text-xl font-bold mb-4 text-white">Add New Product</h2>
-        <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div className="md:col-span-1">
-            <label htmlFor="nomProduit" className="block text-sm font-medium text-gray-300 mb-1">Name</label>
-            <input
-              id="nomProduit"
-              type="text"
-              value={newProduct.nomProduit}
-              onChange={(e) => setNewProduct({ ...newProduct, nomProduit: e.target.value })}
-              className="w-full px-3 py-2 bg-black/40 border border-white/20 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 text-white"
-              placeholder="e.g., Hand Soap"
-              required
-            />
-          </div>
-          <div className="md:col-span-1">
-            <label htmlFor="prix" className="block text-sm font-medium text-gray-300 mb-1">Price (DT)</label>
-            <input
-              id="prix"
-              type="number"
-              value={newProduct.prix}
-              onChange={(e) => setNewProduct({ ...newProduct, prix: Number(e.target.value) })}
-              className="w-full px-3 py-2 bg-black/40 border border-white/20 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 text-white"
-              placeholder="e.g., 12.5"
-              required
-              min="0"
-              step="0.01"
-            />
-          </div>
-          <div className="md:col-span-1">
-            <label htmlFor="quantiteStock" className="block text-sm font-medium text-gray-300 mb-1">Quantity</label>
-            <input
-              id="quantiteStock"
-              type="number"
-              value={newProduct.quantiteStock}
-              onChange={(e) => setNewProduct({ ...newProduct, quantiteStock: Number(e.target.value) })}
-              className="w-full px-3 py-2 bg-black/40 border border-white/20 rounded-lg shadow-sm focus:ring-purple-500 focus:border-purple-500 text-white"
-              placeholder="e.g., 100"
-              required
-              min="0"
-            />
-          </div>
-          <div className="md:col-span-1">
-            <button
-              type="submit"
-              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-semibold py-2 px-4 rounded-lg hover:from-purple-700 hover:to-pink-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 transition-all duration-300 flex items-center justify-center gap-2"
-            >
-              <FiPlus /> Add
-            </button>
+        <h2 className="text-2xl font-bold mb-6 text-white">Add New Product</h2>
+        <form onSubmit={handleCreate} className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-2">
+              <label className="block text-base font-medium text-gray-300">
+                Product Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={newProduct.nomProduit}
+                onChange={(e) => setNewProduct({ ...newProduct, nomProduit: e.target.value })}
+                className="w-full px-5 py-3 text-lg bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                placeholder="Enter product name"
+                required
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-base font-medium text-gray-300">
+                Price (DT) <span className="text-red-500">*</span>
+              </label>
+              <div className="relative">
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={newProduct.prix}
+                  onChange={(e) => setNewProduct({ ...newProduct, prix: e.target.value })}
+                  className="w-full pl-10 pr-5 py-3 text-lg bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  placeholder="0.00"
+                  required
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">DT</span>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-base font-medium text-gray-300">
+                Quantity <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={newProduct.quantiteStock}
+                onChange={(e) => setNewProduct({ ...newProduct, quantiteStock: e.target.value })}
+                className="w-full px-5 py-3 text-lg bg-gray-800/50 border border-gray-700 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                placeholder="Enter quantity"
+                required
+              />
+            </div>
+
+            <div className="md:col-span-3 space-y-2">
+              <label className="block text-base font-medium text-gray-300">
+                Product Image
+              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex-1 cursor-pointer">
+                  <div className="px-5 py-3 bg-gray-800/50 border-2 border-dashed border-gray-700 rounded-xl hover:border-purple-500 transition-colors duration-200 flex items-center justify-center">
+                    <FiPlusCircle className="w-6 h-6 mr-2 text-purple-400" />
+                    <span className="text-gray-300">
+                      {imageFile ? 'Change image' : 'Upload an image'}
+                    </span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageChange}
+                    className="hidden"
+                  />
+                </label>
+                
+                {imageFile && (
+                  <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-3">
+                    <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
+                      <FiImage className="text-gray-400" size={20} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-200 truncate">
+                        {imageFile.name}
+                      </p>
+                      <p className="text-xs text-gray-400">
+                        {(imageFile.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setImageFile(null)}
+                      className="text-gray-400 hover:text-red-400 transition-colors"
+                    >
+                      <FiX size={18} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            <div className="md:col-span-3 pt-2">
+              <button
+                type="submit"
+                className="w-full md:w-auto px-8 py-4 text-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:opacity-90 transition-all duration-200 flex items-center justify-center font-medium"
+              >
+                <FiPlusCircle className="w-6 h-6 mr-2" />
+                Add Product
+              </button>
+            </div>
           </div>
         </form>
       </motion.div>
@@ -155,76 +429,120 @@ const Products = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="overflow-x-auto bg-black/30 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg"
+        className="overflow-hidden bg-black/30 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg"
       >
-        <table className="min-w-full divide-y divide-white/10">
-          <thead className="text-gray-300 text-sm uppercase text-left">
-            <tr>
-              <th className="px-6 py-4">Product Name</th>
-              <th className="px-6 py-4">Price</th>
-              <th className="px-6 py-4">Quantity</th>
-              <th className="px-6 py-4">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-white/10 text-gray-200">
-            {products.map((product) => (
-              <tr key={product._id} className="hover:bg-black/40 transition-colors">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingProduct?._id === product._id ? (
-                    <input
-                      type="text"
-                      value={editingProduct.nomProduit}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, nomProduit: e.target.value })}
-                      className="bg-black/50 border border-white/30 p-1 rounded-md w-full text-white"
-                    />
-                  ) : (
-                    product.nomProduit
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingProduct?._id === product._id ? (
-                    <input
-                      type="number"
-                      value={editingProduct.prix}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, prix: Number(e.target.value) })}
-                      className="bg-black/50 border border-white/30 p-1 rounded-md w-full text-white"
-                      min="0"
-                      step="0.01"
-                    />
-                  ) : (
-                    `${product.prix.toFixed(2)} DT`
-                  )}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  {editingProduct?._id === product._id ? (
-                    <input
-                      type="number"
-                      value={editingProduct.quantiteStock}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, quantiteStock: Number(e.target.value) })}
-                      className="bg-black/50 border border-white/30 p-1 rounded-md w-full text-white"
-                      min="0"
-                    />
-                  ) : (
-                    product.quantiteStock
-                  )}
-                </td>
-                <td className="px-6 py-4 flex gap-3 items-center whitespace-nowrap">
-                  {editingProduct?._id === product._id ? (
-                    <>
-                      <button onClick={handleUpdate} className="text-green-400 hover:text-green-300 transition-colors"><FiCheck size={18} /></button>
-                      <button onClick={() => setEditingProduct(null)} className="text-gray-400 hover:text-gray-300 transition-colors"><FiX size={18} /></button>
-                    </>
-                  ) : (
-                    <>
-                      <button onClick={() => setEditingProduct(product)} className="text-blue-400 hover:text-blue-300 transition-colors"><FiEdit size={16} /></button>
-                      <button onClick={() => handleDelete(product._id)} className="text-red-400 hover:text-red-300 transition-colors"><FiTrash2 size={16} /></button>
-                    </>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {products.length === 0 ? (
+          <div className="text-center py-12">
+            <FiImage className="mx-auto h-12 w-12 text-gray-500" />
+            <h3 className="mt-2 text-lg font-medium text-gray-200">No products</h3>
+            <p className="mt-1 text-gray-400">Get started by adding a new product.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-white/10">
+              <thead className="bg-gray-900/50">
+                <tr>
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Product
+                  </th>
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Price
+                  </th>
+                  <th scope="col" className="px-6 py-4 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Stock
+                  </th>
+                  <th scope="col" className="px-6 py-4 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/10">
+                {products.map((product) => (
+                  <tr key={product._id} className="hover:bg-black/40 transition-colors">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 rounded-md overflow-hidden bg-gray-700">
+                          {product.image ? (
+                            <img 
+                              src={`http://localhost:5001${product.image.startsWith('/uploads/') ? product.image : `/uploads/${product.image}`}`} 
+                              alt={product.nomProduit}
+                              className="h-full w-full object-cover"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement;
+                                target.onerror = null;
+                                target.src = 'https://via.placeholder.com/100';
+                              }}
+                            />
+                          ) : (
+                            <div className="h-full w-full flex items-center justify-center">
+                              <FiImage className="text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-white">{product.nomProduit}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-300">{product.prix.toFixed(2)} DT</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                        product.quantiteStock > 10 
+                          ? 'bg-green-100 text-green-800' 
+                          : product.quantiteStock > 0 
+                            ? 'bg-yellow-100 text-yellow-800' 
+                            : 'bg-red-100 text-red-800'
+                      }`}>
+                        {product.quantiteStock} in stock
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex items-center justify-end space-x-3">
+                        {editingProduct?._id === product._id ? (
+                          <>
+                            <button 
+                              onClick={handleUpdate} 
+                              className="text-green-500 hover:text-green-400 transition-colors p-1.5 rounded-full hover:bg-green-500/10"
+                              title="Save changes"
+                            >
+                              <FiCheck size={18} />
+                            </button>
+                            <button 
+                              onClick={() => setEditingProduct(null)} 
+                              className="text-gray-400 hover:text-gray-300 transition-colors p-1.5 rounded-full hover:bg-gray-500/10"
+                              title="Cancel"
+                            >
+                              <FiX size={18} />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button 
+                              onClick={() => setEditingProduct(product)} 
+                              className="text-blue-500 hover:text-blue-400 transition-colors p-1.5 rounded-full hover:bg-blue-500/10"
+                              title="Edit product"
+                            >
+                              <FiEdit size={16} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(product._id)} 
+                              className="text-red-500 hover:text-red-400 transition-colors p-1.5 rounded-full hover:bg-red-500/10"
+                              title="Delete product"
+                            >
+                              <FiTrash2 size={16} />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </motion.div>
     </div>
   );

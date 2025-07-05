@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const path = require('path');
 require('dotenv').config();
 const connectDB = require('./config/db');
 const maintenanceMiddleware = require('./middleware/maintenanceMiddleware');
@@ -22,6 +23,10 @@ const app = express();
 
 // Basic middleware
 app.use(express.json());
+
+// Serve static files from the public directory
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Enable CORS for all routes
 const allowedOrigins = ['http://localhost:3000', 'http://localhost:3001', 'http://localhost:3002'];
@@ -75,7 +80,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5001;
 
 
 connectDB().then(() => {

@@ -2,12 +2,14 @@
 
 import { useState, useEffect, ReactNode, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { FiCalendar, FiMapPin, FiShoppingCart, FiAlertCircle, FiArrowLeft, FiCheckCircle, FiPlus, FiMinus, FiTrash2 } from 'react-icons/fi';
 import { TbTruck, TbTruckDelivery } from 'react-icons/tb';
 import { motion } from 'framer-motion';
 import { CartItem } from '../../types';
 import type { Location } from '../components/LocationPicker';
 import AuroraBackground from '../components/AuroraBackground';
+import { getImageProps } from '../../utils/imageUtils';
 
 import dynamic from 'next/dynamic';
 
@@ -206,27 +208,44 @@ export default function ReservationPage() {
         <div className="max-w-4xl mx-auto">
           <SectionWrapper title={`Vos Articles (${totalItems})`} icon={<FiShoppingCart size={24} />}>
             <div className="space-y-4">
-              {cartItems.length > 0 ? cartItems.map(item => (
-                <div key={item._id} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
-                  <div className="flex items-center gap-4">
-                    <img src={item.imageUrl || '/placeholder.png'} alt={item.nomProduit} width={64} height={64} className="rounded-md object-cover w-16 h-16" />
-                    <div>
-                      <h3 className="font-semibold text-white">{item.nomProduit}</h3>
-                      <p className="text-sky-400 text-sm font-bold">{(item.prix).toFixed(2)} DT</p>
+              {cartItems.length > 0 ? (
+                <>
+                  {cartItems.map(item => (
+                    <div key={item._id} className="flex items-center justify-between bg-white/5 p-3 rounded-lg">
+                      <div className="flex items-center gap-4">
+                        <div className="relative w-16 h-16 rounded-md overflow-hidden flex-shrink-0">
+                          <Image
+                            {...getImageProps(item.image, item.nomProduit)}
+                            className="object-cover"
+                            fill
+                            sizes="64px"
+                          />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-white truncate">{item.nomProduit}</h3>
+                          <p className="text-sky-400 text-sm font-bold">{(item.prix || 0).toFixed(2)} DT</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2 bg-black/20 rounded-full p-1">
+                          <button onClick={() => updateQuantity(item._id, item.quantity - 1)} className="p-1.5 rounded-full hover:bg-white/20 transition-colors"><FiMinus className="text-white/80"/></button>
+                          <span className="font-bold text-white w-4 text-center">{item.quantity}</span>
+                          <button onClick={() => updateQuantity(item._id, item.quantity + 1)} className="p-1.5 rounded-full hover:bg-white/20 transition-colors"><FiPlus className="text-white/80"/></button>
+                        </div>
+                        <button onClick={() => removeFromCart(item._id)} className="text-red-500 hover:text-red-400 p-2">
+                          <FiTrash2 size={20} />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-6 pt-4 border-t border-white/10">
+                    <div className="flex justify-between items-center">
+                      <p className="text-white/70 mb-1">Revenu Total</p>
+                      <p className="text-xl font-bold text-sky-400">{totalPrice.toFixed(2)} DT</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 bg-black/20 rounded-full p-1">
-                      <button onClick={() => updateQuantity(item._id, item.quantity - 1)} className="p-1.5 rounded-full hover:bg-white/20 transition-colors"><FiMinus className="text-white/80"/></button>
-                      <span className="font-bold text-white w-4 text-center">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item._id, item.quantity + 1)} className="p-1.5 rounded-full hover:bg-white/20 transition-colors"><FiPlus className="text-white/80"/></button>
-                    </div>
-                    <button onClick={() => removeFromCart(item._id)} className="text-red-500 hover:text-red-400 p-2">
-                      <FiTrash2 size={20} />
-                    </button>
-                  </div>
-                </div>
-              )) : (
+                </>
+              ) : (
                 <p className="text-white/60 text-center py-4">Votre panier est vide.</p>
               )}
             </div>

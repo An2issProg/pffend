@@ -5,7 +5,9 @@ export interface Product {
   prix: number;
   categorie: string;
   sousCategorie?: string;
+  /** @deprecated Use image instead */
   imageUrl?: string;
+  image?: string;
   quantiteStock: number;
 }
 

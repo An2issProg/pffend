@@ -7,8 +7,7 @@ import { motion } from 'framer-motion';
 import { FiSearch, FiShoppingCart, FiArrowLeft, FiArrowRight, FiWind, FiBox, FiDroplet, FiScissors, FiSun, FiZap, FiMoreHorizontal, FiImage } from 'react-icons/fi';
 import AuroraBackground from '../components/AuroraBackground';
 import { Product } from '../../types';
-
-
+import { getImageProps } from '../../utils/imageUtils';
 
 const CategoryIcon = ({ name }: { name: string }) => {
   const icons: { [key: string]: React.ElementType } = {
@@ -54,18 +53,35 @@ export default function ProductsPage() {
 
   useEffect(() => {
     const fetchProducts = async () => {
-      setLoading(true);
       try {
-        const response = await fetch("http://localhost:5001/api/products");
-        if (!response.ok) throw new Error('Network response was not ok');
+        setLoading(true);
+        const token = localStorage.getItem('token');
+        if (!token) {
+          throw new Error('Authentication required');
+        }
+        
+        const response = await fetch('http://localhost:5001/api/products', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Échec du chargement des produits');
+        }
+        
         const data = await response.json();
-        setProducts(Array.isArray(data) ? data : data.products || []);
-      } catch (err: any) {
-        setError(err.message);
+        setProducts(data);
+      } catch (error: any) {
+        setError(error.message);
+        console.error('Error fetching products:', error);
       } finally {
         setLoading(false);
       }
     };
+
     fetchProducts();
   }, []);
 
@@ -178,14 +194,15 @@ export default function ProductsPage() {
                   variants={itemVariants}
                   className="group bg-black/30 backdrop-blur-xl p-4 rounded-2xl border border-white/10 shadow-2xl transition-all duration-300 hover:border-sky-400/50 hover:-translate-y-1 flex flex-col h-full cursor-pointer"
                 >
-                  <div className="relative h-48 mb-4 rounded-lg overflow-hidden">
-                    <Image
-                      src={product.imageUrl || '/placeholder.png'}
-                      alt={product.nomProduit}
-                      fill
-                      className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                    />
+                  <div className="relative h-48 mb-4 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
+                    <div className="relative w-full h-full">
+                      <Image
+                        {...getImageProps(product.image, product.nomProduit)}
+                        fill
+                        className="object-cover group-hover:scale-105 transition-transform duration-300"
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      />
+                    </div>
                     {product.quantiteStock === 0 && (
                       <div className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded-full shadow-lg">
                         Indisponible

@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { FiChevronLeft, FiShoppingCart, FiTag, FiInfo } from 'react-icons/fi';
 import AuroraBackground from '@/app/components/AuroraBackground';
+import { getImageProps } from '@/utils/imageUtils';
 
 interface Product {
   _id: string;
@@ -27,25 +28,85 @@ const ProductDetailPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (id) {
-      const fetchProduct = async () => {
-        try {
-          setLoading(true);
-          const res = await fetch(`http://localhost:5001/api/products/${id}`);
-          if (!res.ok) {
-            throw new Error('Failed to fetch product data');
-          }
-          const data = await res.json();
-          setProduct(data);
-        } catch (err: any) {
-          setError(err.message);
-        } finally {
-          setLoading(false);
-        }
-      };
-
-      fetchProduct();
+    if (!id) {
+      setError('No product ID provided');
+      setLoading(false);
+      return;
     }
+
+    const fetchProduct = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Get token from localStorage
+        let token = '';
+        if (typeof window !== 'undefined') {
+          token = localStorage.getItem('token') || '';
+        }
+
+        console.log('Fetching product with ID:', id);
+        console.log('Using token:', token ? 'Token exists' : 'No token found');
+        
+        // Prepare fetch options
+        const fetchOptions: RequestInit = {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+          },
+          credentials: 'include',
+        };
+
+        // Add authorization header if token exists
+        if (token) {
+          fetchOptions.headers = {
+            ...fetchOptions.headers,
+            'Authorization': `Bearer ${token}`
+          };
+        }
+
+        // Add cache-busting parameter
+        const url = new URL(`http://localhost:5001/api/products/${id}`);
+        url.searchParams.append('_t', Date.now().toString());
+
+        console.log('Fetching from URL:', url.toString());
+        
+        const response = await fetch(url.toString(), fetchOptions);
+        
+        console.log('Response status:', response.status);
+        
+        if (!response.ok) {
+          let errorMessage = 'Failed to fetch product data';
+          try {
+            const errorData = await response.text();
+            console.error('Raw error response:', errorData);
+            try {
+              const jsonError = JSON.parse(errorData);
+              errorMessage = jsonError.message || errorMessage;
+              console.error('Parsed API Error:', jsonError);
+            } catch (e) {
+              errorMessage = errorData || errorMessage;
+            }
+          } catch (e) {
+            console.error('Failed to parse error response:', e);
+          }
+          throw new Error(`${errorMessage} (Status: ${response.status})`);
+        }
+        
+        const productData = await response.json();
+        console.log('Product data received:', productData);
+        setProduct(productData);
+      } catch (err: any) {
+        console.error('Error in fetchProduct:', err);
+        const errorMessage = err.message || 'Failed to connect to the server. Please check your connection and try again.';
+        setError(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
   }, [id]);
 
   if (loading) {
@@ -101,13 +162,12 @@ const ProductDetailPage = () => {
               transition={{ duration: 0.5, delay: 0.2 }}
               className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 shadow-lg border border-white/20"
             >
-              <div className="relative w-full h-96 rounded-lg overflow-hidden">
+              <div className="relative w-full h-96 rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center">
                 <Image
-                  src={product.image || '/placeholder.png'}
-                  alt={product.nomProduit}
-                  layout="fill"
-                  objectFit="cover"
-                  className="transition-transform duration-300 hover:scale-105"
+                  {...getImageProps(product.image, product.nomProduit)}
+                  fill
+                  className="object-cover transition-transform duration-300 hover:scale-105"
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 />
               </div>
             </motion.div>

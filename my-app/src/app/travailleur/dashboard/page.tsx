@@ -226,7 +226,7 @@ export default function WorkerDashboard() {
         {lastSaleTotal !== null && (
           <div className="mb-8 bg-green-900/30 border border-green-700 rounded-2xl p-6 text-center">
             <h2 className="text-2xl font-bold text-green-400">Dernière clôture de journée</h2>
-            <p className="text-4xl font-bold mt-2">{lastSaleTotal.toFixed(2)}€</p>
+            <p className="text-4xl font-bold mt-2">{lastSaleTotal.toFixed(2)} DT</p>
           </div>
         )}
 

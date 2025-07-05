@@ -241,7 +241,7 @@ export default function DashboardContent() {
                       <tr key={sale._id} className="hover:bg-white/5 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">{sale.worker?.name || 'N/A'}</td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-white/90">{new Date(sale.date).toLocaleDateString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-emerald-300 font-semibold">{sale.total.toFixed(2)} €</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-emerald-300 font-semibold">{sale.total.toFixed(2)} DT </td>
                       </tr>
                     )) : (
                       <tr>

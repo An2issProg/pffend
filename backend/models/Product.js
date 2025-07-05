@@ -15,6 +15,15 @@ const productSchema = new mongoose.Schema({
     type: Number,
     required: [true, 'La quantité en stock est requise'],
     min: [0, 'La quantité ne peut pas être négative']
+  },
+  image: {
+    type: String,
+    default: '/images/default-product.svg'
+  },
+  categorie: {
+    type: String,
+    trim: true,
+    default: ''
   }
 }, {
   timestamps: true
