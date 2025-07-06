@@ -39,6 +39,78 @@ const Products = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [editingImageFile, setEditingImageFile] = useState<File | null>(null);
   const [editingImagePreview, setEditingImagePreview] = useState<string | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+
+  // Handle edit button click
+  const handleEditClick = (product: Product) => {
+    setEditingProduct(product);
+    setNewProduct({
+      nomProduit: product.nomProduit,
+      prix: product.prix.toString(),
+      quantiteStock: product.quantiteStock.toString(),
+    });
+    setEditingImagePreview(product.image || null);
+    setIsEditing(true);
+  };
+
+  // Handle update product
+  const handleUpdateProduct = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!editingProduct) return;
+
+    try {
+      const formData = new FormData();
+      formData.append('nomProduit', newProduct.nomProduit);
+      formData.append('prix', newProduct.prix.toString());
+      formData.append('quantiteStock', newProduct.quantiteStock.toString());
+      
+      if (editingImageFile) {
+        formData.append('image', editingImageFile);
+      }
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('No authentication token found. Please log in.');
+        return;
+      }
+
+      const response = await axios.put(
+        `http://localhost:5001/api/admin/products/${editingProduct._id}`, 
+        formData,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+        }
+      );
+
+      // Update the products list
+      setProducts(products.map(p => 
+        p._id === response.data._id ? response.data : p
+      ));
+      
+      // Reset form
+      setEditingProduct(null);
+      setNewProduct({ nomProduit: '', prix: '', quantiteStock: '' });
+      setEditingImageFile(null);
+      setEditingImagePreview(null);
+      setIsEditing(false);
+      
+    } catch (error) {
+      console.error('Error updating product:', error);
+      setError('Failed to update product. Please try again.');
+    }
+  };
+
+  // Handle cancel edit
+  const handleCancelEdit = () => {
+    setEditingProduct(null);
+    setNewProduct({ nomProduit: '', prix: '', quantiteStock: '' });
+    setEditingImageFile(null);
+    setEditingImagePreview(null);
+    setIsEditing(false);
+  };
 
   // Handle image change for new product
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -317,7 +389,7 @@ const Products = () => {
         className="mb-8 p-8 bg-black/30 backdrop-blur-lg rounded-2xl border border-white/10 shadow-lg"
       >
         <h2 className="text-2xl font-bold mb-6 text-white">Add New Product</h2>
-        <form onSubmit={handleCreate} className="space-y-6">
+        <form onSubmit={isEditing ? handleUpdateProduct : handleCreate} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="space-y-2">
               <label className="block text-base font-medium text-gray-300">
@@ -367,28 +439,27 @@ const Products = () => {
               />
             </div>
 
-            <div className="md:col-span-3 space-y-2">
+            <div className="space-y-2">
               <label className="block text-base font-medium text-gray-300">
                 Product Image
               </label>
-              <div className="flex items-center gap-4">
-                <label className="flex-1 cursor-pointer">
-                  <div className="px-5 py-3 bg-gray-800/50 border-2 border-dashed border-gray-700 rounded-xl hover:border-purple-500 transition-colors duration-200 flex items-center justify-center">
-                    <FiPlusCircle className="w-6 h-6 mr-2 text-purple-400" />
-                    <span className="text-gray-300">
-                      {imageFile ? 'Change image' : 'Upload an image'}
-                    </span>
-                  </div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageChange}
-                    className="hidden"
-                  />
-                </label>
+              <label className="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-600 bg-gray-900/50 p-6 text-center hover:border-purple-500 transition-colors">
+                <FiImage className="h-10 w-10 text-gray-400 mb-2" />
+                <p className="text-sm text-gray-400">
+                  Drag and drop your image here, or click to select
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  PNG, JPG, JPEG up to 5MB
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="hidden"
+                />
                 
                 {imageFile && (
-                  <div className="flex items-center gap-3 bg-gray-800/50 rounded-lg p-3">
+                  <div className="mt-4 flex items-center gap-3 bg-gray-800/50 rounded-lg p-3">
                     <div className="w-12 h-12 bg-gray-700 rounded-lg flex items-center justify-center">
                       <FiImage className="text-gray-400" size={20} />
                     </div>
@@ -409,17 +480,26 @@ const Products = () => {
                     </button>
                   </div>
                 )}
-              </div>
+              </label>
             </div>
-            
-            <div className="md:col-span-3 pt-2">
+          </div>
+          <div className="md:col-span-3 pt-2">
+            <div className="flex space-x-4">
               <button
                 type="submit"
-                className="w-full md:w-auto px-8 py-4 text-lg bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl hover:opacity-90 transition-all duration-200 flex items-center justify-center font-medium"
+                className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 text-white py-3 px-6 rounded-lg font-medium hover:opacity-90 transition-opacity"
               >
-                <FiPlusCircle className="w-6 h-6 mr-2" />
-                Add Product
+                {isEditing ? 'Update Product' : 'Add Product'}
               </button>
+              {isEditing && (
+                <button
+                  type="button"
+                  onClick={handleCancelEdit}
+                  className="px-4 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
             </div>
           </div>
         </form>
@@ -520,8 +600,8 @@ const Products = () => {
                         ) : (
                           <>
                             <button 
-                              onClick={() => setEditingProduct(product)} 
-                              className="text-blue-500 hover:text-blue-400 transition-colors p-1.5 rounded-full hover:bg-blue-500/10"
+                              onClick={() => handleEditClick(product)}
+                              className="text-blue-500 hover:text-blue-400 transition-colors p-1.5 rounded-full hover:bg-blue-500/10 mr-2"
                               title="Edit product"
                             >
                               <FiEdit size={16} />
@@ -543,7 +623,7 @@ const Products = () => {
             </table>
           </div>
         )}
-      </motion.div>
+      </motion.div> 
     </div>
   );
 };
