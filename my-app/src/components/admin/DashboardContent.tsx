@@ -36,6 +36,7 @@ export default function DashboardContent() {
   const [animatedTravailleurs, setAnimatedTravailleurs] = useState(0)
   const [animatedClients, setAnimatedClients] = useState(0)
   const [animatedRevenue, setAnimatedRevenue] = useState(0)
+  const [totalWorkersAmount, setTotalWorkersAmount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [sales, setSales] = useState<Sale[]>([])
@@ -87,6 +88,11 @@ export default function DashboardContent() {
         }
         const data = await response.json()
         setSales(data)
+        
+        // Calculer le montant total des travailleurs
+        const total = data.reduce((sum: number, sale: Sale) => sum + (sale.total || 0), 0)
+        setTotalWorkersAmount(total)
+        
       } catch (err: any) {
         setSalesError(err.message || 'Failed to load sales data')
         console.error(err)
@@ -156,11 +162,11 @@ export default function DashboardContent() {
         >
           <h1 className="text-4xl font-bold mb-10 text-transparent bg-clip-text bg-gradient-to-r from-sky-300 to-emerald-300">Tableau de bord Administrateur</h1>
 
-          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
+          <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-12">
             {/* Stat Cards */}
             <StatCard icon={FiUsers} title="Travailleurs" value={animatedTravailleurs} />
             <StatCard icon={FiUserCheck} title="Clients" value={animatedClients} />
-            <StatCard icon={FiDollarSign} title="Revenu Total" value={`€${(stats?.totalRevenue || 0).toFixed(2)}`} />
+            <StatCard icon={FiDollarSign} title="Total Travailleurs" value={`€${totalWorkersAmount.toFixed(2)}`} />
           </motion.div>
 
           <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
